@@ -9,7 +9,7 @@ const mailSchema = new mongoose.Schema({
   title: {
     type: String,
     required: true,
-    default: "Hi there, you’re safe here",
+    default: "Welcome to Cozy Minds",
   },
   content: {
     type: String,
