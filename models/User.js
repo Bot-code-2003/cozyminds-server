@@ -56,7 +56,7 @@ const userSchema = new mongoose.Schema(
     // New fields for coin system
     coins: {
       type: Number,
-      default: 0,
+      default: 50,
     },
     inventory: {
       type: Array,

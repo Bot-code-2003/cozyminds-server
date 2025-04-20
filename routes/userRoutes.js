@@ -27,7 +27,7 @@ router.post("/signup", async (req, res) => {
       gender,
       subscribe,
       lastVisited: new Date(), // Set lastVisited for first-time user
-      coins: 0, // Initialize with 0 coins
+      coins: 50, // Initialize with 0 coins
       inventory: [], // Initialize with empty inventory
     });
     await newUser.save();
