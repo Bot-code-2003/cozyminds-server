@@ -1,4 +1,3 @@
-// index.js
 import express, { urlencoded } from "express";
 import mongoose from "mongoose";
 import cors from "cors";
@@ -11,34 +10,37 @@ const app = express();
 dotenv.config();
 
 const mongoURL = process.env.MONGODB_URL;
-app.use(cors({ origin: "https://cozyminds.vercel.app" }));
 
-// Handle preflight requests
+// Apply CORS early and properly
+app.use(
+  cors({
+    origin: "https://cozyminds.vercel.app",
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  })
+);
 app.options("*", cors());
 
-// const mongoURL = "mongodb://localhost:27017/CozyMind";
-// app.use(cors());
-
+// JSON/body parser
 app.use(express.json());
 app.use(urlencoded({ extended: true }));
-// Root route
-app.get("/", (req, res) => {
-  res.send("Hello from Cozy Minds!");
+
+// Debug route
+app.get("/ping", (req, res) => {
+  res.send("Server is alive");
 });
 
-// Use routers
-app.use("/user", userRoutes); // All user routes under /api
-app.use("/journal", journalRoutes); // All journal routes under /api
-app.use("/mail", mailRoutes); // Add mail routes
+// Routes
+app.use("/user", userRoutes);
+app.use("/journal", journalRoutes);
+app.use("/mail", mailRoutes);
 
-// Connect to MongoDB and start the server
+// Connect DB
 mongoose
   .connect(mongoURL)
-  .then(() => {
-    app.listen(3000, () => {
-      console.log("Server is running on port 3000");
-    });
-  })
-  .catch((error) => console.log(error));
+  .then(() => console.log("MongoDB connected"))
+  .catch((err) => console.log("MongoDB Error:", err));
 
-// export const handler = serverless(app);
+// Vercel handles the server - do NOT listen here
+export default app;
