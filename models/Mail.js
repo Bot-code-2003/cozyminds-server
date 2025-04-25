@@ -19,16 +19,16 @@ const mailSchema = new mongoose.Schema({
   <div style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background-color: #F4FBEA; padding: 0 10px; color: #A3C398; font-size: 1.2rem;">🌿</div>
 
   <h1 style="font-size: 1.4rem; color: #7CA280; font-weight: 600; margin-bottom: 1.2rem; text-align: center; font-family: 'Courier New', monospace;">
-    Hi there, you’re safe here 🍃
+    Hi there, you're safe here 🍃
   </h1>
 
   <p style="font-size: 1rem; margin-bottom: 1.2rem;">
     I made this as a quiet little place for myself — to write, reflect, and gently learn.  
-    Now it’s here for you too.  
-    There’s no pressure. Just a calm space to pause and listen to your day.
+    Now it's here for you too.  
+    There's no pressure. Just a calm space to pause and listen to your day.
     <br><br>
     Your words stay yours. Always private, always respected.  
-    Cozy Minds is for anyone who wants to try journaling — even if it’s your very first time.
+    Cozy Minds is for anyone who wants to try journaling — even if it's your very first time.
   </p>
 
   <p style="font-size: 0.95rem; color: #6B816B; font-style: italic; border-top: 1px dashed #D4E5C3; padding-top: 1rem; text-align: right;">
@@ -53,8 +53,24 @@ const mailSchema = new mongoose.Schema({
         type: Boolean,
         default: false,
       },
+      rewardClaimed: {
+        type: Boolean,
+        default: false,
+      },
     },
   ],
+  mailType: {
+    type: String,
+    enum: ["welcome", "reward", "other"],
+    default: "welcome",
+  },
+  rewardAmount: {
+    type: Number,
+    default: 0,
+  },
 });
 
-export default mongoose.model("Mail", mailSchema);
+// Create a model if it doesn't already exist
+const Mail = mongoose.models.Mail || mongoose.model("Mail", mailSchema);
+
+export default Mail;

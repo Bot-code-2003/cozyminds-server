@@ -27,16 +27,82 @@ router.post("/signup", async (req, res) => {
       gender,
       subscribe,
       lastVisited: new Date(), // Set lastVisited for first-time user
-      coins: 50, // Initialize with 0 coins
+      coins: 0, // Initialize with 0 coins
       inventory: [], // Initialize with empty inventory
     });
     await newUser.save();
 
-    // ✨ Send Welcome Mail
-    await Mail.create({
+    // Create welcome mail
+    const welcomeMail = new Mail({
+      sender: "Developer",
       title: "Welcome to Cozy Minds",
-      recipients: [{ userId: newUser._id }],
+      content: `
+        <div style="padding: 1.5rem; background-color: #F4FBEA; color: #3E4E3D; font-family: 'Georgia', serif; line-height: 1.7; border: 2px solid #D4E5C3; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.03); position: relative;">
+          <div style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background-color: #F4FBEA; padding: 0 10px; color: #A3C398; font-size: 1.2rem;">🌿</div>
+
+          <h1 style="font-size: 1.4rem; color: #7CA280; font-weight: 600; margin-bottom: 1.2rem; text-align: center; font-family: 'Courier New', monospace;">
+            Hi there, you're safe here 🍃
+          </h1>
+
+          <p style="font-size: 1rem; margin-bottom: 1.2rem;">
+            I made this as a quiet little place for myself — to write, reflect, and gently learn.  
+            Now it's here for you too.  
+            There's no pressure. Just a calm space to pause and listen to your day.
+            <br><br>
+            Your words stay yours. Always private, always respected.  
+            Cozy Minds is for anyone who wants to try journaling — even if it's your very first time.
+          </p>
+
+          <p style="font-size: 0.95rem; color: #6B816B; font-style: italic; border-top: 1px dashed #D4E5C3; padding-top: 1rem; text-align: right;">
+            With care,  
+            <br>Developer
+          </p>
+        </div>
+      `,
+      recipients: [{ userId: newUser._id, read: false }],
+      mailType: "welcome",
     });
+
+    // Create reward mail
+    const rewardMail = new Mail({
+      sender: "Cozy Minds Team",
+      title: "Welcome Gift: 50 Coins",
+      content: `
+        <div style="padding: 1.5rem; background-color: #FFF8E6; color: #5D4B35; font-family: 'Georgia', serif; line-height: 1.7; border: 2px solid #F3E2B3; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.03); position: relative;">
+  <div style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background-color: #FFF8E6; padding: 0 10px; color: #D4B96E; font-size: 1.2rem;">🎁</div>
+
+  <h1 style="font-size: 1.4rem; color: #C4A24C; font-weight: 600; margin-bottom: 1.2rem; text-align: center; font-family: 'Courier New', monospace;">
+    Welcome to Cozy Minds! 🌙✨
+  </h1>
+
+  <p style="font-size: 1rem; margin-bottom: 1.2rem;">
+    We're so glad you're here! As a warm welcome, you've received <strong>50 cozy coins</strong> to start your journey.
+    <br><br>
+    You can use these coins to unlock delightful themes in the Cozy Store and make your journaling space truly your own.
+    <br><br>
+    Stay tuned – more magical items and features are coming soon to the store, just for you!
+  </p>
+
+  <div style="text-align: center; margin: 1.5rem 0;">
+    <button id="claim-reward-button" style="background-color: #D4B96E; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; transition: all 0.2s ease;">
+      Claim Your 50 Coins
+    </button>
+  </div>
+
+  <p style="font-size: 0.95rem; color: #7D6B4C; font-style: italic; border-top: 1px dashed #F3E2B3; padding-top: 1rem; text-align: right;">
+    Happy journaling,  
+    <br>💌 Developer
+  </p>
+</div>
+
+      `,
+      recipients: [{ userId: newUser._id, read: false, rewardClaimed: false }],
+      mailType: "reward",
+      rewardAmount: 50, // Set the reward amount explicitly
+    });
+
+    // Save both mails
+    await Promise.all([welcomeMail.save(), rewardMail.save()]);
 
     res.status(201).json({ message: "Signup successful!", user: newUser });
   } catch (error) {

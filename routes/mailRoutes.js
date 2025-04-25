@@ -72,14 +72,22 @@ router.get("/mails/:userId", async (req, res) => {
     }).sort({ date: -1 });
 
     // Transform mails to match the frontend format
-    const formattedMails = mails.map((mail) => ({
-      id: mail._id,
-      sender: mail.sender,
-      title: mail.title,
-      content: mail.content,
-      date: mail.date.toISOString(),
-      read: mail.recipients.find((r) => r.userId.toString() === userId).read, // Check if the user has read the mail
-    }));
+    const formattedMails = mails.map((mail) => {
+      const recipient = mail.recipients.find(
+        (r) => r.userId.toString() === userId
+      );
+      return {
+        id: mail._id,
+        sender: mail.sender,
+        title: mail.title,
+        content: mail.content,
+        date: mail.date.toISOString(),
+        read: recipient.read,
+        mailType: mail.mailType,
+        rewardAmount: mail.rewardAmount || 0,
+        rewardClaimed: recipient.rewardClaimed || false,
+      };
+    });
 
     res.status(200).json({ mails: formattedMails });
   } catch (error) {
@@ -125,6 +133,76 @@ router.put("/mail/:id/read", async (req, res) => {
     res.status(200).json({ message: "Mail marked as read." });
   } catch (error) {
     console.error("Error marking mail as read:", error);
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+});
+
+// Claim reward from mail
+router.put("/mail/:id/claim-reward", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId } = req.body;
+
+    // Validate IDs
+    if (
+      !mongoose.Types.ObjectId.isValid(id) ||
+      !mongoose.Types.ObjectId.isValid(userId)
+    ) {
+      return res.status(400).json({ message: "Invalid ID format." });
+    }
+
+    // Find the mail
+    const mail = await Mail.findById(id);
+    if (!mail) {
+      return res.status(404).json({ message: "Mail not found." });
+    }
+
+    // Check if mail is a reward mail
+    if (mail.mailType !== "reward") {
+      return res
+        .status(400)
+        .json({ message: "This mail has no reward to claim." });
+    }
+
+    // Check if user is a recipient
+    const recipient = mail.recipients.find(
+      (r) => r.userId.toString() === userId
+    );
+    if (!recipient) {
+      return res
+        .status(403)
+        .json({ message: "User is not a recipient of this mail." });
+    }
+
+    // Check if reward already claimed
+    if (recipient.rewardClaimed) {
+      return res.status(400).json({ message: "Reward already claimed." });
+    }
+
+    // Find user and update coins
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    // Get reward amount (default to 50 if not specified)
+    const rewardAmount = mail.rewardAmount || 50;
+
+    // Add coins to user
+    user.coins = (user.coins || 0) + rewardAmount;
+    await user.save();
+
+    // Mark reward as claimed
+    recipient.rewardClaimed = true;
+    recipient.read = true; // Also mark as read
+    await mail.save();
+
+    res.status(200).json({
+      message: `Reward of ${rewardAmount} coins claimed successfully.`,
+      newCoinsBalance: user.coins,
+    });
+  } catch (error) {
+    console.error("Error claiming reward:", error);
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 });
