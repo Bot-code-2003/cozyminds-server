@@ -62,7 +62,11 @@ const userSchema = new mongoose.Schema(
       type: Array,
       default: [],
     },
-    // Remove activeTheme field as themes are now per-journal
+    // New field for active mail theme
+    activeMailTheme: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true }
 );

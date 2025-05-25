@@ -36,6 +36,7 @@ router.post("/sendMail", async (req, res) => {
       content,
       recipients,
       date: new Date(),
+      expiryDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), // Mail expires after 10 days
     });
 
     await newMail.save();
@@ -82,6 +83,7 @@ router.get("/mails/:userId", async (req, res) => {
         title: mail.title,
         content: mail.content,
         date: mail.date.toISOString(),
+        expiryDate: mail.expiryDate?.toISOString(),
         read: recipient.read,
         mailType: mail.mailType,
         rewardAmount: mail.rewardAmount || 0,
@@ -207,52 +209,25 @@ router.put("/mail/:id/claim-reward", async (req, res) => {
   }
 });
 
-// Delete a mail for a specific user
-router.delete("/mail/:id", async (req, res) => {
+// Cleanup function to delete expired mails
+const cleanupExpiredMails = async () => {
   try {
-    const { id } = req.params;
-    const { userId } = req.body;
+    const currentDate = new Date();
+    const result = await Mail.deleteMany({
+      expiryDate: { $lt: currentDate },
+    });
 
-    // Validate IDs
-    if (
-      !mongoose.Types.ObjectId.isValid(id) ||
-      !mongoose.Types.ObjectId.isValid(userId)
-    ) {
-      return res.status(400).json({ message: "Invalid ID format." });
-    }
-
-    // Find the mail
-    const mail = await Mail.findById(id);
-    if (!mail) {
-      return res.status(404).json({ message: "Mail not found." });
-    }
-
-    // Check if user is a recipient
-    const recipientIndex = mail.recipients.findIndex(
-      (r) => r.userId.toString() === userId
-    );
-    if (recipientIndex === -1) {
-      return res
-        .status(403)
-        .json({ message: "User is not a recipient of this mail." });
-    }
-
-    // Remove user from recipients
-    mail.recipients.splice(recipientIndex, 1);
-
-    // If no recipients remain, delete the mail entirely
-    if (mail.recipients.length === 0) {
-      await Mail.deleteOne({ _id: id });
-      return res.status(200).json({ message: "Mail deleted successfully." });
-    }
-
-    // Otherwise, save the updated mail
-    await mail.save();
-    res.status(200).json({ message: "Mail deleted for user." });
+    console.log(`Cleaned up ${result.deletedCount} expired mails`);
   } catch (error) {
-    console.error("Error deleting mail:", error);
-    res.status(500).json({ message: "Server Error", error: error.message });
+    console.error("Error during mail cleanup:", error);
   }
-});
+};
+
+// Run cleanup every day
+const CLEANUP_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
+setInterval(cleanupExpiredMails, CLEANUP_INTERVAL);
+
+// Run cleanup once when server starts
+cleanupExpiredMails();
 
 export default router;
