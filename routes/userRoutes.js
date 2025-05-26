@@ -382,7 +382,7 @@ router.post("/login", async (req, res) => {
           }
 
           mailsToSend.push({
-            sender: "Cozy Minds Team",
+            sender: "Starlit Journals Team",
             title: "Your 3-Day Streak Reward!",
             content: themedContent,
             recipients: [
@@ -907,7 +907,7 @@ router.post("/login", async (req, res) => {
 
             const randomPrompt = getRandomPrompt();
             const defaultTemplate = {
-              sender: "Cozy Minds Team",
+              sender: "Starlit Journals Team",
               title: "Your Detailed Weekly Journal Insights 📊✨",
               content: `
                 <div style="padding: 1rem; background: linear-gradient(to bottom, #ffe5d9, #fff5eb); border: 2px solid #ffccbc; box-shadow: 0 4px 8px rgba(255, 204, 188, 0.2); color: #5c4033; font-family: 'Indie Flower', Helvetica, sans-serif; margin: 0 auto; text-align: center; ">
@@ -979,7 +979,7 @@ router.post("/login", async (req, res) => {
   
   <a style="display: inline-block; padding: 0.8rem 2rem; background: #ff8a65; color: #fff5eb; text-decoration: none; font-size: 1rem; font-weight: bold; border-radius: 25px; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(255, 138, 101, 0.3);" href="journaling-alt" onmouseover="this.style.background='#e07b59'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='#ff8a65'; this.style.transform='translateY(0)'">Continue Your Journey ✍️</a>
   
-  <p style="font-size: 0.95rem; line-height: 1.6; margin-top: 1.5rem; color: #8d6e63;">Keep nurturing your inner world through words,<br><strong>The Cozy Minds Team</strong></p>
+  <p style="font-size: 0.95rem; line-height: 1.6; margin-top: 1.5rem; color: #8d6e63;">Keep nurturing your inner world through words,<br><strong>The Starlit Journals Team</strong></p>
 </div>
               `,
             };

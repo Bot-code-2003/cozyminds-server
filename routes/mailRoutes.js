@@ -8,7 +8,7 @@ const router = express.Router();
 // Send mail to all users (SiteMaster only)
 router.post("/sendMail", async (req, res) => {
   try {
-    const { title, content, sender = "Cozy Minds Team" } = req.body;
+    const { title, content, sender = "Starlit Journals Team" } = req.body;
 
     // Validate required fields
     if (!title || !content) {

@@ -9,12 +9,12 @@ const mailSchema = new mongoose.Schema({
   title: {
     type: String,
     required: true,
-    default: "Welcome to Cozy Minds",
+    default: "Welcome to Starlit Journals",
   },
   content: {
     type: String,
     required: true,
-    default: `Welcome to Cozy Minds!`,
+    default: `Welcome to Starlit Journals!`,
   },
   date: {
     type: Date,
