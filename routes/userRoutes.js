@@ -6,9 +6,18 @@ import Journal from "../models/Journal.js"; // Import Journal model
 // import mailTemplates from "./mailTemplates.json" assert { type: "json" };
 import mongoose from "mongoose";
 
-const mailTemplates = await import("./mailTemplates.json", {
-  assert: { type: "json" },
-});
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+// Required in ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Build the path to the JSON file in the same folder
+const mailTemplatesPath = join(__dirname, "mailTemplates.json");
+
+const mailTemplates = JSON.parse(readFileSync(mailTemplatesPath, "utf-8"));
 
 const router = express.Router();
 
