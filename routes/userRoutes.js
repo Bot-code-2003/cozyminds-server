@@ -1078,48 +1078,48 @@ router.post("/login", async (req, res) => {
     }
 
     // 6. SEASONAL/HOLIDAY MAILS
-    try {
-      const specialDate = getSpecialDate();
-      // const specialDate = "valentines";
+    // try {
+    //   const specialDate = getSpecialDate();
+    //   // const specialDate = "valentines";
 
-      if (
-        specialDate &&
-        mailTemplates.seasonal &&
-        mailTemplates.seasonal[specialDate]
-      ) {
-        const recentSeasonalMail = await Mail.findOne({
-          "recipients.userId": user._id,
-          mailType: "seasonal",
-          "metadata.season": specialDate,
-          date: { $gte: getDateDaysAgo(7) },
-        });
+    //   if (
+    //     specialDate &&
+    //     mailTemplates.seasonal &&
+    //     mailTemplates.seasonal[specialDate]
+    //   ) {
+    //     const recentSeasonalMail = await Mail.findOne({
+    //       "recipients.userId": user._id,
+    //       mailType: "seasonal",
+    //       "metadata.season": specialDate,
+    //       date: { $gte: getDateDaysAgo(7) },
+    //     });
 
-        if (!recentSeasonalMail) {
-          const seasonalTemplate = getRandomTemplate(
-            mailTemplates.seasonal[specialDate]
-          );
+    //     if (!recentSeasonalMail) {
+    //       const seasonalTemplate = getRandomTemplate(
+    //         mailTemplates.seasonal[specialDate]
+    //       );
 
-          // Apply mail theme if user has one active
-          let content = seasonalTemplate.content;
-          if (user.activeMailTheme) {
-            content = applyMailTheme(content, user.activeMailTheme);
-          }
+    //       // Apply mail theme if user has one active
+    //       let content = seasonalTemplate.content;
+    //       if (user.activeMailTheme) {
+    //         content = applyMailTheme(content, user.activeMailTheme);
+    //       }
 
-          mailsToSend.push({
-            sender: seasonalTemplate.sender,
-            title: seasonalTemplate.title,
-            content: content,
-            recipients: [{ userId: user._id, read: false }],
-            mailType: "seasonal",
-            metadata: { season: specialDate },
-            date: new Date(),
-            themeId: user.activeMailTheme,
-          });
-        }
-      }
-    } catch (error) {
-      console.error("Error generating seasonal mail:", error);
-    }
+    //       mailsToSend.push({
+    //         sender: seasonalTemplate.sender,
+    //         title: seasonalTemplate.title,
+    //         content: content,
+    //         recipients: [{ userId: user._id, read: false }],
+    //         mailType: "seasonal",
+    //         metadata: { season: specialDate },
+    //         date: new Date(),
+    //         themeId: user.activeMailTheme,
+    //       });
+    //     }
+    //   }
+    // } catch (error) {
+    //   console.error("Error generating seasonal mail:", error);
+    // }
 
     // 7. TIPS AND INSPIRATION
     try {
