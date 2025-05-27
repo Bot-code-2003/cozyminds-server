@@ -35,6 +35,20 @@ router.get("/journals/recent/:userId", async (req, res) => {
   }
 });
 
+// MOVE THIS ROUTE BEFORE THE PARAMETERIZED ROUTES
+// Get total count of journal entries
+router.get("/journals/journalscount", async (req, res) => {
+  try {
+    const count = await Journal.countDocuments();
+    console.log("Number of journal entries:", count);
+
+    res.status(200).json({ count });
+  } catch (error) {
+    console.error("Error fetching journal count:", error);
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+});
+
 // Update user streak (independent from story)
 async function updateUserStreak(userId, journalDate) {
   try {
@@ -200,6 +214,7 @@ router.delete("/collection/:userId/:collection", async (req, res) => {
   }
 });
 
+// THIS ROUTE SHOULD COME AFTER THE SPECIFIC ROUTES
 // Get Journal Entries for a User
 router.get("/journals/:userId", async (req, res) => {
   try {
@@ -360,17 +375,6 @@ router.delete("/tag/:userId/:tag", async (req, res) => {
     });
   } catch (error) {
     console.error("Error removing tag:", error);
-    res.status(500).json({ message: "Server Error", error: error.message });
-  }
-});
-
-// Get total count of journal entries
-router.get("/journals/journalscount", async (req, res) => {
-  try {
-    const count = await Journal.countDocuments();
-    res.status(200).json({ count });
-  } catch (error) {
-    console.error("Error fetching journal count:", error);
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 });
