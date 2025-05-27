@@ -364,4 +364,15 @@ router.delete("/tag/:userId/:tag", async (req, res) => {
   }
 });
 
+// Get total count of journal entries
+router.get("/journals/journalscount", async (req, res) => {
+  try {
+    const count = await Journal.countDocuments();
+    res.status(200).json({ count });
+  } catch (error) {
+    console.error("Error fetching journal count:", error);
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+});
+
 export default router;
