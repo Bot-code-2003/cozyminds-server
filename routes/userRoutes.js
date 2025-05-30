@@ -143,7 +143,6 @@ router.post("/signup", async (req, res) => {
       subscribe,
       lastVisited: new Date(),
       coins: 0,
-      inventory: [],
       activeMailTheme: null,
     });
     await newUser.save();
