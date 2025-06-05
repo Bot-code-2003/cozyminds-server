@@ -16,7 +16,8 @@ const __dirname = dirname(__filename);
 
 // Build the path to the JSON file in the same folder
 const mailTemplatesPath = join(__dirname, "mailTemplates.json");
-
+const storyPath = join(__dirname, "stories.json");
+const storyData = JSON.parse(readFileSync(storyPath, "utf-8"));
 const mailTemplates = JSON.parse(readFileSync(mailTemplatesPath, "utf-8"));
 
 const router = express.Router();
@@ -500,7 +501,7 @@ router.post("/login", async (req, res) => {
                       : undefined,
                   },
                 ],
-                mailType: "entry",
+                mailType: "reward",
                 rewardAmount: entryTemplate.rewardAmount,
                 metadata: { milestone: milestone },
                 date: new Date(),
@@ -575,7 +576,7 @@ router.post("/login", async (req, res) => {
     // 5. WEEKLY SUMMARY MAIL
     try {
       if (isFirstLoginOfWeek(lastVisited)) {
-        const oneWeekAgo = getDateDaysAgo(7);
+        const oneWeekAgo = getDateDaysAgo(1);
         // Check for recent summary to prevent duplicates
         const recentSummaryMail = await Mail.findOne({
           "recipients.userId": user._id,
@@ -1239,7 +1240,7 @@ router.post("/login", async (req, res) => {
 
     try {
       // 9. DAILY COZY MESSAGE
-      const oneDayAgo = getDateDaysAgo(1);
+      const oneDayAgo = getDateDaysAgo(2);
       const recentCozyMail = await Mail.findOne({
         "recipients.userId": user._id,
         mailType: "prompt",
@@ -1282,14 +1283,21 @@ router.post("/login", async (req, res) => {
           sender,
           title,
           content: `
-        <div style="padding: 1.25rem; background: linear-gradient(to bottom, #f3e7f5, #f9f0fa); border: 2px solid #d8b4fe; border-radius: 10px; box-shadow: 0 4px 8px rgba(216, 180, 254, 0.2); color: #5b3a70; font-family: 'Indie Flower', 'Helvetica', sans-serif; margin: 0 auto; text-align: center;">
-          <h2 style="font-size: 1.5rem; margin-bottom: 1rem; letter-spacing: 0.5px;">A Moment of Coziness 🌿</h2>
-          <p style="font-size: 1rem; line-height: 1.6; margin-bottom: 1.5rem;">Dear Journaler,</p>
-          <p style="font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem; background: rgba(255, 255, 255, 0.6); padding: 1rem; border-radius: 6px; font-style: italic;">${cozyMessage}</p>
-          <p style="font-size: 0.9rem; line-height: 1.5; margin-bottom: 1.5rem;">Take this gentle nudge to pause, reflect, or simply savor the moment.</p>
-          <a style="display: inline-block; padding: 0.6rem 1.5rem; background: #d8b4fe; color: #fff; text-decoration: none; font-size: 0.9rem; font-weight: bold; border-radius: 25px; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(216, 180, 254, 0.3);" href="journaling-alt" onmouseover="this.style.background='#c084fc'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='#d8b4fe'; this.style.transform='translateY(0)'">Open Your Journal ✍️</a>
-          <p style="font-size: 0.85rem; line-height: 1.6; margin-top: 1.5rem; color: #7c4b96;">Wishing you warmth and peace,<br><strong>${sender}</strong></p>
-        </div>
+        <div style="padding: 1.25rem; background: rgba(243, 231, 245, 0.4); border-radius: 10px; font-family: 'Indie Flower', 'Helvetica', sans-serif; color: #4b2e60; text-align: center; max-width: 600px; margin: 0 auto; backdrop-filter: blur(4px);">
+  <p style="font-size: 0.9rem; margin-bottom: 1.2rem;">Hey Journaler 🌿</p>
+
+  <div style="font-size: 1rem; line-height: 1.6; padding: 1rem; border-radius: 8px; background: rgba(255, 255, 255, 0.5); font-style: italic; font-weight: 500; color: #3f2b4f;">
+    ${cozyMessage}
+  </div>
+
+  <a style="display: inline-block; margin-top: 1.25rem; font-size: 0.85rem; padding: 0.4rem 1rem; border-radius: 9999px; background: #d8b4fe; color: white; text-decoration: none; transition: all 0.2s ease;" 
+     href="journaling-alt" 
+     onmouseover="this.style.background='#c084fc'; this.style.transform='translateY(-1px)'" 
+     onmouseout="this.style.background='#d8b4fe'; this.style.transform='translateY(0)'">
+    Open Journal ✍️
+  </a>
+</div>
+
       `,
         };
 
@@ -1311,6 +1319,68 @@ router.post("/login", async (req, res) => {
       }
     } catch (error) {
       console.error("Error generating cozy message mail:", error);
+    }
+
+    // 10. STORY DELIVERY
+    try {
+      const today = new Date().toDateString();
+      const { storyName, currentChapter, lastSent } = user.storyProgress || {};
+      const lastSentDate = lastSent ? new Date(lastSent).toDateString() : null;
+
+      // Only send if today's story wasn't already sent
+      if (today !== lastSentDate) {
+        const story = storyData.stories.find(
+          (s) => s["Story Name"] === storyName
+        );
+
+        if (story && currentChapter <= story.number_of_chapters) {
+          // If chapter number missing from JSON, assign manually by index
+          const chapterData = story.chapters[currentChapter - 1];
+          if (chapterData) {
+            const storyMail = new Mail({
+              sender: story.character,
+              title: `Chapter ${currentChapter}: ${chapterData.title}`,
+              content: `
+  <div style="
+    background-image: url('${story.image}');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    padding: 2rem;
+    border-radius: 10px;
+    color: #2c2c2c;
+    font-family: 'Indie Flower', cursive;
+  ">
+    <div style="
+      background-color: rgba(255, 255, 255, 0.6);
+      padding: 1.25rem;
+      border-radius: 10px;
+      white-space: pre-wrap;
+    ">
+      ${chapterData.content}
+    </div>
+  </div>
+`,
+              recipients: [{ userId: user._id, read: false }],
+              mailType: "story",
+              metadata: { chapter: currentChapter },
+              date: new Date(),
+            });
+
+            await storyMail.save();
+
+            // Update story progress
+            user.storyProgress = {
+              storyName,
+              currentChapter: currentChapter + 1,
+              lastSent: new Date(),
+            };
+            await user.save();
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error sending story chapter:", error);
     }
 
     // Save all generated mails

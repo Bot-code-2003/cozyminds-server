@@ -277,33 +277,6 @@ router.get("/journal/:id", async (req, res) => {
   }
 });
 
-// Delete a journal entry
-router.delete("/journal/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    // Validate journal ID
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "Invalid journal ID format." });
-    }
-
-    // Find and delete the journal entry
-    const deletedJournal = await Journal.findByIdAndDelete(id).lean();
-
-    if (!deletedJournal) {
-      return res.status(404).json({ message: "Journal entry not found." });
-    }
-
-    res.status(200).json({
-      message: "Journal entry deleted successfully!",
-      journal: deletedJournal,
-    });
-  } catch (error) {
-    console.error("Error deleting journal:", error);
-    res.status(500).json({ message: "Server Error", error: error.message });
-  }
-});
-
 // Get journals by collection
 router.get("/journals/:userId/collection/:collection", async (req, res) => {
   try {
@@ -375,6 +348,33 @@ router.delete("/tag/:userId/:tag", async (req, res) => {
     });
   } catch (error) {
     console.error("Error removing tag:", error);
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+});
+
+// Delete a journal entry
+router.delete("/journal/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Validate journal ID
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid journal ID format." });
+    }
+
+    // Find and delete the journal entry
+    const deletedJournal = await Journal.findByIdAndDelete(id).lean();
+
+    if (!deletedJournal) {
+      return res.status(404).json({ message: "Journal entry not found." });
+    }
+
+    res.status(200).json({
+      message: "Journal entry deleted successfully!",
+      journal: deletedJournal,
+    });
+  } catch (error) {
+    console.error("Error deleting journal:", error);
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 });

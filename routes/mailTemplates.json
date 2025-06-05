@@ -204,7 +204,7 @@
       {
         "sender": "Starlit Journals Team",
         "title": "A Gentle Reminder: You're Not Alone",
-        "content": "<p>Hey there, 💜</p><p>It seems things have been tough lately. Your feelings are valid and temporary. Be kind to yourself—try a small comfort like a warm drink or music.</p><p>Take care,</p><p>Starlit Journals Team</p>"
+        "content": "<p>It seems things have been tough lately. Your feelings are valid and temporary. Be kind to yourself—try a small comfort like a warm drink or music.</p><p>Take care,</p><p>Starlit Journals Team</p>"
       },
       {
         "sender": "Starlit Journals Team",
@@ -219,24 +219,24 @@
       {
         "sender": "Starlit Journals Team",
         "title": "Holding Space for Your Feelings",
-        "content": "<p>Dear friend, 🫂</p><p>We've noticed your recent entries reflect some heavier emotions. Sometimes the most courageous thing we can do is acknowledge our struggles. Your journal is witnessing your strength, even when you don't feel strong.</p><p>Beside you,</p><p>Starlit Journals Team</p>"
+        "content": "<p></p><p>We've noticed your recent entries reflect some heavier emotions. Sometimes the most courageous thing we can do is acknowledge our struggles. Your journal is witnessing your strength, even when you don't feel strong.</p><p>Beside you,</p><p>Starlit Journals Team</p>"
       },
       {
         "sender": "Starlit Journals Team",
         "title": "The Courage in Vulnerability",
-        "content": "<p>Thinking of you, 🌿</p><p>Your recent journal entries show you're working through some difficult emotions. There's tremendous courage in facing these feelings and putting them into words. Each entry is helping you process and move forward.</p><p>With gentleness,</p><p>Starlit Journals Team</p>"
+        "content": "<p>Your recent journal entries show you're working through some difficult emotions. There's tremendous courage in facing these feelings and putting them into words. Each entry is helping you process and move forward.</p><p>With gentleness,</p><p>Starlit Journals Team</p>"
       }
     ],
     "veryFrustrated": [
       {
         "sender": "Starlit Journals Team",
         "title": "When Frustration Takes Over",
-        "content": "<p>Hello there, 🧘</p><p>Your recent entries show you've been navigating significant frustration. Remember that acknowledging these feelings is already a step toward processing them. Consider trying a brief breathing exercise: inhale for 4, hold for 4, exhale for 6.</p><p>Patient with you,</p><p>Starlit Journals Team</p>"
+        "content": "<p>Your recent entries show you've been navigating significant frustration. Remember that acknowledging these feelings is already a step toward processing them. Consider trying a brief breathing exercise: inhale for 4, hold for 4, exhale for 6.</p><p>Patient with you,</p><p>Starlit Journals Team</p>"
       },
       {
         "sender": "Starlit Journals Team",
         "title": "Working Through Frustration",
-        "content": "<p>We see you, 🪁</p><p>Frustration can feel like being stuck in a loop, but your journaling is helping you untangle those feelings. Sometimes naming what's frustrating you most can help release its grip a little.</p><p>Beside you,</p><p>Starlit Journals Team</p>"
+        "content": "<p>Frustration can feel like being stuck in a loop, but your journaling is helping you untangle those feelings. Sometimes naming what's frustrating you most can help release its grip a little.</p><p>Beside you,</p><p>Starlit Journals Team</p>"
       }
     ],
     "anxious": [
@@ -248,7 +248,7 @@
       {
         "sender": "Starlit Journals Team",
         "title": "Anchoring Through Anxious Moments",
-        "content": "<p>Hello friend, 🪶</p><p>We've noticed anxiety themes in your recent journals. When anxiety rises, try grounding yourself with the 5-4-3-2-1 technique: notice 5 things you can see, 4 things you can touch, 3 things you can hear, 2 things you can smell, and 1 thing you can taste.</p><p>Grounded with you,</p><p>Starlit Journals Team</p>"
+        "content": "<p>We've noticed anxiety themes in your recent journals. When anxiety rises, try grounding yourself with the 5-4-3-2-1 technique: notice 5 things you can see, 4 things you can touch, 3 things you can hear, 2 things you can smell, and 1 thing you can taste.</p><p>Grounded with you,</p><p>Starlit Journals Team</p>"
       }
     ],
     "happy": [
@@ -287,7 +287,7 @@
       {
         "sender": "Starlit Journals Team",
         "title": "When Life Feels Magical",
-        "content": "<p>Hello, jubilant friend! 🎉</p><p>Your recent entries are bursting with enthusiasm and happiness. These moments when life feels especially sweet are worth documenting in detail. Future you will appreciate being able to revisit this time!</p><p>Dancing in your joy,</p><p>Starlit Journals Team</p>"
+        "content": "<p>Hello 🎉</p><p>Your recent entries are bursting with enthusiasm and happiness. These moments when life feels especially sweet are worth documenting in detail. Future you will appreciate being able to revisit this time!</p><p>Dancing in your joy,</p><p>Starlit Journals Team</p>"
       }
     ],
     "grateful": [

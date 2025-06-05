@@ -58,6 +58,16 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    // Inside userSchema definition
+    storyProgress: {
+      type: Object,
+      default: {
+        currentChapter: 1,
+        lastSent: null,
+        storyName: "Andy the Sailor",
+      },
+    },
+
     inventory: {
       type: Array,
       default: () => [

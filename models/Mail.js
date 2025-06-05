@@ -50,6 +50,7 @@ const mailSchema = new mongoose.Schema({
       "seasonal",
       "tip",
       "prompt",
+      "story",
     ],
     default: "welcome",
   },
