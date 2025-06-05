@@ -62,9 +62,9 @@ const userSchema = new mongoose.Schema(
     storyProgress: {
       type: Object,
       default: {
-        currentChapter: 1,
+        currentChapter: null,
         lastSent: null,
-        storyName: "Andy the Sailor",
+        storyName: null,
       },
     },
 
