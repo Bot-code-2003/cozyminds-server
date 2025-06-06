@@ -184,7 +184,6 @@ router.post("/signup", async (req, res) => {
 
     // Get random welcome template
     const welcomeTemplate = getRandomTemplate(mailTemplates.welcome);
-    // console.log(welcomeTemplate);
 
     // Create welcome mail
     const welcomeMail = new Mail({
@@ -195,8 +194,24 @@ router.post("/signup", async (req, res) => {
       mailType: "welcome",
     });
 
+    // Create story promotion mail
+    const storyMail = new Mail({
+      sender: "Andy the Sailor",
+      title: "Claim Your Free Story Chapter!",
+      content: `
+<div style="background-image: url('/andy_the_sailor.png'); background-size: cover; background-position: center; padding: 20px; border-radius: 8px; color: #ffffff; text-align: center; position: relative; min-height: 400px;">  <div style="background-color: rgba(26, 32, 44, 0.8); padding: 15px; border-radius: 8px;">
+    <p style="margin: 0 0 15px; font-size: 16px;">Hi ${nickname},</p>
+    <p style="margin: 0 0 15px; font-size: 16px;">Join Andy's *Moonwake Adventures* for free! Claim your first chapter in our Cozy Shop.</p>
+    <a href="/cozyshop" style="display: inline-block; padding: 10px 20px; background-color: #1a202c; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold;">Claim Your First Chapter Free</a>
+  </div>
+</div>
+      `,
+      recipients: [{ userId: newUser._id, read: false }],
+      mailType: "story",
+    });
+
     // Save all mails
-    const mailsToSave = [welcomeMail, rewardMail];
+    const mailsToSave = [welcomeMail, rewardMail, storyMail];
     if (specialMail) mailsToSave.push(specialMail);
 
     await Promise.all(mailsToSave.map((mail) => mail.save()));
