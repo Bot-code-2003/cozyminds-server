@@ -123,6 +123,46 @@ function applyMailTheme(content, themeId) {
   </div>`;
 }
 
+// Anonymous name generator
+const adjectives = [
+  "Whispering", "Dancing", "Soaring", "Gentle", "Mystic",
+  "Radiant", "Serene", "Vibrant", "Cosmic", "Ethereal",
+  "Luminous", "Tranquil", "Enchanted", "Harmonious", "Celestial",
+  "Dreamy", "Melodic", "Peaceful", "Magical", "Stellar",
+  "Wandering", "Floating", "Glowing", "Twinkling", "Breezy",
+  "Sparkling", "Misty", "Shimmering", "Drifting", "Gliding",
+  "Swaying", "Murmuring", "Rustling", "Swishing", "Sighing",
+  "Bubbling", "Gurgling", "Rippling", "Splashing", "Trickling",
+  "Humming", "Buzzing", "Chirping", "Singing", "Whistling"
+];
+
+const nouns = [
+  "Dreamer", "Wanderer", "Explorer", "Seeker", "Traveler",
+  "Observer", "Listener", "Thinker", "Creator", "Artist",
+  "Poet", "Writer", "Sage", "Mystic", "Visionary",
+  "Spirit", "Soul", "Heart", "Mind", "Star",
+  "Moon", "Sun", "Cloud", "Wind", "River",
+  "Ocean", "Mountain", "Forest", "Garden", "Flower",
+  "Tree", "Bird", "Butterfly", "Dragonfly", "Phoenix",
+  "Dragon", "Unicorn", "Pegasus", "Griffin", "Angel",
+  "Fairy", "Elf", "Dwarf", "Wizard", "Knight",
+  "Princess", "Prince", "Queen", "King"
+];
+
+const generateAnonymousName = (nickname) => {
+  const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+  const noun = nouns[Math.floor(Math.random() * nouns.length)];
+
+  const hash = nickname
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .split("")
+    .reduce((acc, char) => acc + char.charCodeAt(0), 0) % 10000;
+
+  return `${adj}${noun}${hash}`;
+};
+
+
 // Handle Signup
 router.post("/signup", async (req, res) => {
   try {
@@ -133,6 +173,9 @@ router.post("/signup", async (req, res) => {
     if (existingUser) {
       return res.status(409).json({ message: "Email already in use." });
     }
+
+    const anonymousName = generateAnonymousName(nickname);
+    
 
     // Save new user with initial coins
     const newUser = new User({
@@ -145,7 +188,10 @@ router.post("/signup", async (req, res) => {
       lastVisited: new Date(),
       coins: 0,
       activeMailTheme: null,
+      anonymousName: anonymousName,
     });
+
+
     await newUser.save();
 
     // Check for special date mail

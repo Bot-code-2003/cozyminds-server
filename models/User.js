@@ -67,7 +67,10 @@ const userSchema = new mongoose.Schema(
         storyName: null,
       },
     },
-
+    anonymousName: {
+      type: String,
+      default: null,
+    },
     inventory: {
       type: Array,
       default: () => [

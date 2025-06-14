@@ -4,7 +4,46 @@ import mongoose from "mongoose";
 import Journal from "../models/Journal.js";
 import User from "../models/User.js";
 
+
 const router = express.Router();
+
+// Get public journals with pagination
+router.get("/journals/public", async (req, res) => {
+  try {
+    // Extract page and limit from query parameters, with defaults
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10; // Default to 10 journals per page
+    const skip = (page - 1) * limit; // Calculate how many documents to skip
+
+    // Input validation
+    if (page < 1 || limit < 1 || limit > 100) {
+      return res.status(400).json({ message: "Invalid page or limit value" });
+    }
+
+    // Fetch journals
+    const journals = await Journal.find({ isPublic: true })
+      .sort({ date: -1 }) // Sort by date in descending order
+      .skip(skip) // Skip documents for pagination
+      .limit(limit) // Limit the number of documents
+      .select("title content authorName date likeCount likes theme mood tags slug"); // Select fields
+
+    // Count total public journals to determine if more are available
+    const totalJournals = await Journal.countDocuments({ isPublic: true });
+    const hasMore = skip + journals.length < totalJournals; // Check if more journals exist
+
+    // Return journals and pagination metadata
+    res.json({
+      journals,
+      hasMore,
+      page,
+      limit,
+      total: totalJournals,
+    });
+  } catch (error) {
+    console.error("Error fetching public journals:", error);
+    res.status(500).json({ message: "Error fetching public journals", error: error.message });
+  }
+});
 
 // Get the 3 most recent journal entries for a user
 router.get("/journals/recent/:userId", async (req, res) => {
@@ -97,66 +136,132 @@ async function updateUserStreak(userId, journalDate) {
   }
 }
 
-// Update the saveJournal route to handle collections and themes properly
+// Function to generate SEO-friendly slug
+const generateSlug = async (title, Journal) => {
+  // Handle invalid inputs
+  if (!title || typeof title !== 'string') {
+    return '';
+  }
+
+  // Common stop words to remove (optional, for concise slugs)
+  const stopWords = new Set([
+    'a', 'an', 'and', 'as', 'at', 'but', 'by', 'for', 'from', 'in',
+    'into', 'like', 'near', 'nor', 'of', 'on', 'onto', 'or', 'over',
+    'the', 'to', 'with', 'yet',
+  ]);
+
+  // Replace special characters with meaningful equivalents
+  const replacements = {
+    '&': 'and',
+    '@': 'at',
+    '#': 'number',
+    '%': 'percent',
+    '$': 'dollar',
+  };
+
+  let slug = title
+    .toLowerCase()
+    .trim(); // Remove leading/trailing whitespace
+
+  // Apply special character replacements
+  for (const [char, replacement] of Object.entries(replacements)) {
+    slug = slug.replaceAll(char, ` ${replacement} `);
+  }
+
+  // Normalize diacritics (e.g., café → cafe)
+  slug = slug
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  // Remove stop words
+  const words = slug.split(/\s+/).filter(word => !stopWords.has(word));
+  slug = words.join(' ');
+
+  // Replace non-alphanumeric with hyphens
+  slug = slug
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  // Truncate to 60 characters at word boundary
+  const maxLength = 60;
+  if (slug.length > maxLength) {
+    const truncated = slug.substring(0, maxLength);
+    slug = truncated.substring(0, truncated.lastIndexOf('-')) || truncated;
+  }
+
+  // Default slug if empty
+  if (!slug) {
+    slug = 'journal';
+  }
+
+  // Check uniqueness and append number if needed
+  let baseSlug = slug;
+  let counter = 1;
+  let uniqueSlug = slug;
+
+  while (await Journal.findOne({ slug: uniqueSlug })) {
+    uniqueSlug = `${baseSlug}-${counter}`;
+    counter++;
+  }
+
+  return uniqueSlug;
+};
+
+// Update the saveJournal route to handle privacy
 router.post("/saveJournal", async (req, res) => {
   try {
     const {
-      userId,
+      userId, // Get userId from request body
       title,
       content,
       mood,
       tags,
-      wordCount,
-      date,
       collections,
       theme,
+      isPublic,
+      authorName,
     } = req.body;
 
     // Validate required fields
     if (!userId || !title || !content || !mood) {
-      return res.status(400).json({
-        message:
-          "Missing required fields. userId, title, content, and mood are required.",
-      });
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    // Validate authorName for public journals
+    if (isPublic && !authorName) {
+      return res.status(400).json({ message: "Author name is required for public journals" });
     }
 
     // Check if user exists
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ message: "User not found." });
+      return res.status(404).json({ message: "User not found" });
     }
 
-    // Create new journal entry
-    const newJournal = new Journal({
+    // Generate slug from title
+    const slug = await generateSlug(title, Journal);
+
+    const journal = new Journal({
       userId,
       title,
+      slug,
       content,
       mood,
       tags,
-      wordCount,
-      collections: collections || ["All"], // Use the collections array from request
-      theme, // Add theme to journal entry
-      date: new Date(), // Proper ISO format
+      collections,
+      theme,
+      isPublic,
+      authorName: isPublic ? authorName : undefined,
+      wordCount: content.split(/\s+/).length,
     });
 
-    await newJournal.save();
-
-    // Update user streak (independent from story)
-    await updateUserStreak(userId, newJournal.date);
-
-    // Convert to plain object to avoid circular references
-    const journalObj = newJournal.toObject();
-
-    res.status(201).json({
-      message: "Journal entry saved successfully!",
-      journal: journalObj,
-    });
+    await journal.save();
+    res.status(201).json(journal);
   } catch (error) {
     console.error("Error saving journal:", error);
-    res.status(500).json({
-      message: "Server Error",
-      error: error.message,
-    });
+    res.status(500).json({ message: "Error saving journal", error: error.message });
   }
 });
 
@@ -376,6 +481,80 @@ router.delete("/journal/:id", async (req, res) => {
   } catch (error) {
     console.error("Error deleting journal:", error);
     res.status(500).json({ message: "Server Error", error: error.message });
+  }
+});
+
+// Like/Unlike a journal
+router.post("/journals/:id/like", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.body.userId;
+
+    if (!userId) {
+      return res.status(401).json({ message: "User ID is required" });
+    }
+
+    // Validate user ID
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid user ID format." });
+    }
+
+    // Validate journal ID
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid journal ID format." });
+    }
+
+    const journal = await Journal.findById(id);
+    if (!journal) {
+      return res.status(404).json({ message: "Journal not found" });
+    }
+
+    const isLiked = journal.likes.includes(userId);
+    if (isLiked) {
+      // Unlike
+      journal.likes = journal.likes.filter(id => id.toString() !== userId);
+      journal.likeCount = Math.max(0, journal.likeCount - 1);
+    } else {
+      // Like
+      journal.likes.push(userId);
+      journal.likeCount += 1;
+    }
+
+    await journal.save();
+    res.json({ 
+      likeCount: journal.likeCount,
+      isLiked: !isLiked
+    });
+  } catch (error) {
+    console.error("Error updating like status:", error);
+    res.status(500).json({ message: "Error updating like status" });
+  }
+});
+
+// Get single public journal by slug
+router.get("/journals/singlepublic/:slug", async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    console.log(slug);
+    
+    
+    const journal = await Journal.findOne({ 
+      slug,
+      isPublic: true 
+    }).populate("title content authorName date likeCount likes theme mood tags slug");
+
+    console.log(journal);
+    
+
+    if (!journal) {
+      return res.status(404).json({ message: "Journal not found" });
+    }
+
+    res.json(journal);
+  } catch (error) {
+    console.error("Error fetching public journal:", error);
+    res.status(500).json({ message: "Error fetching public journal", error: error.message });
   }
 });
 
