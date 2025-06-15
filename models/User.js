@@ -78,7 +78,7 @@ const userSchema = new mongoose.Schema(
           id: "theme_default",
           name: "Default",
           description: "A simple, no-frills journal theme",
-          color: "#cccccc", // a plain gray
+          color: "#cccccc",
           category: "theme",
           isEmoji: false,
           gradient: null,
@@ -87,12 +87,51 @@ const userSchema = new mongoose.Schema(
         },
       ],
     },
-
     // New field for active mail theme
     activeMailTheme: {
       type: String,
       default: null,
     },
+    // New subscription fields
+    subscribers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    subscribedTo: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    subscriberCount: {
+      type: Number,
+      default: 0,
+    },
+    // Profile customization
+    bio: {
+      type: String,
+      maxlength: 500,
+      default: "",
+    },
+    profileTheme: {
+      type: String,
+      default: "default",
+    },
+    // Notification tracking
+    lastNotificationCheck: {
+      type: Date,
+      default: Date.now,
+    },
+
+    // saved journals
+    savedJournals: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Journal",
+      },
+    ],
   },
   { timestamps: true }
 );

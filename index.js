@@ -5,6 +5,7 @@ import cors from "cors";
 import userRoutes from "./routes/userRoutes.js";
 import journalRoutes from "./routes/journalRoutes.js";
 import mailRoutes from "./routes/mailRoutes.js";
+import subscriptionRoutes from "./routes/subscriptionRoutes.js";
 
 const app = express();
 
@@ -36,6 +37,7 @@ app.get("/", (req, res) => {
 app.use("/", userRoutes); // All user routes under /api
 app.use("/", journalRoutes); // All journal routes under /api
 app.use("/", mailRoutes); // Add mail routes
+app.use("/", subscriptionRoutes);
 
 app.get("/proxy-image", async (req, res) => {
   const imageUrl = req.query.url;
