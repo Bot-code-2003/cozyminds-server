@@ -1,6 +1,6 @@
 import express from "express"
 import mongoose from "mongoose"
-import Comment from "../models/Comment.js"
+import Comment from "../models/comment.js"
 import Journal from "../models/Journal.js"
 import User from "../models/User.js"
 
