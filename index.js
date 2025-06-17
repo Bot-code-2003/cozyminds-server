@@ -12,9 +12,11 @@ const app = express();
 
 const mongoURL =
   "mongodb+srv://madisettydharmadeep:cozyminds@cozyminds.yth43.mongodb.net/?retryWrites=true&w=majority&appName=cozyminds";
+
+// CORS configuration
 app.use(
   cors({
-    origin: "https://starlitjournals.vercel.app",
+    origin: ["https://starlitjournals.vercel.app", "http://localhost:5173"],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
@@ -23,9 +25,6 @@ app.use(
 
 // Handle preflight requests
 app.options("*", cors());
-
-// const mongoURL = "mongodb://localhost:27017/CozyMind";
-app.use(cors());
 
 app.use(express.json());
 app.use(urlencoded({ extended: true }));
