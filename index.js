@@ -14,14 +14,46 @@ const mongoURL =
   "mongodb+srv://madisettydharmadeep:cozyminds@cozyminds.yth43.mongodb.net/?retryWrites=true&w=majority&appName=cozyminds";
 
 // CORS configuration
+const allowedOrigins = [
+  'https://starlitjournals.vercel.app',
+  'http://localhost:5173',
+  'https://cozyminds-server.vercel.app'
+];
+
 app.use(
   cors({
-    origin: ["https://starlitjournals.vercel.app", "http://localhost:5173"],
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    origin: function(origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.indexOf(origin) === -1) {
+        const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+        return callback(new Error(msg), false);
+      }
+      return callback(null, true);
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
     credentials: true,
+    preflightContinue: false,
+    optionsSuccessStatus: 204
   })
 );
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  if (err.name === 'CORSError') {
+    return res.status(403).json({
+      message: 'CORS Error',
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Not allowed'
+    });
+  }
+  res.status(500).json({
+    message: 'Internal Server Error',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
+});
 
 // Handle preflight requests
 app.options("*", cors());

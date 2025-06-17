@@ -1477,11 +1477,22 @@ router.post("/login", async (req, res) => {
 // Get number of users
 router.get("/users", async (req, res) => {
   try {
-    const users = await User.countDocuments();
+    // Add a timeout to the database operation
+    const users = await Promise.race([
+      User.countDocuments(),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Database operation timed out')), 5000)
+      )
+    ]);
+    
     res.status(200).json({ users });
   } catch (error) {
     console.error("Error fetching users:", error);
-    res.status(500).json({ message: "Server Error", error: error.message });
+    // Send a more specific error message
+    res.status(500).json({ 
+      message: "Failed to fetch user count", 
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
   }
 });
 
