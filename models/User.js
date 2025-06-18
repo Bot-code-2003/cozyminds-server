@@ -62,9 +62,10 @@ const userSchema = new mongoose.Schema(
     storyProgress: {
       type: Object,
       default: {
+        storyName: null,
         currentChapter: null,
         lastSent: null,
-        storyName: null,
+        isComplete: false,
       },
     },
     anonymousName: {
@@ -138,6 +139,10 @@ const userSchema = new mongoose.Schema(
     },
     completedStreakMilestones: {
       type: [Number],
+      default: [],
+    },
+    generatedMails: {
+      type: [Object],
       default: [],
     },
   },

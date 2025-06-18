@@ -8,45 +8,33 @@ const router = express.Router();
 // Send mail to all users (SiteMaster only)
 router.post("/sendMail", async (req, res) => {
   try {
-    const { title, content, sender = "Starlit Journals Team" } = req.body;
+    const { title, content, sender = "Starlit Journals Team", mailType = "other", expiryDate } = req.body;
 
     // Validate required fields
     if (!title || !content) {
-      return res
-        .status(400)
-        .json({ message: "Title and content are required." });
+      return res.status(400).json({ message: "Title and content are required." });
     }
 
-    // Fetch all users
-    const users = await User.find({}, "_id");
-    if (!users.length) {
-      return res.status(404).json({ message: "No users found." });
-    }
-
-    // Create recipients array
-    const recipients = users.map((user) => ({
-      userId: user._id,
-      read: false,
-    }));
-
-    // Create new mail
+    // Create new system mail
     const newMail = new Mail({
       sender,
       title,
       content,
-      recipients,
+      mailType,
+      isSystemMail: true,
+      sendToAllUsers: true,
       date: new Date(),
-      expiryDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), // Mail expires after 10 days
+      expiryDate: expiryDate || new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), // 10 days default
     });
 
     await newMail.save();
 
     res.status(201).json({
-      message: "Mail sent successfully to all users!",
+      message: "System mail created successfully!",
       mail: newMail,
     });
   } catch (error) {
-    console.error("Error sending mail:", error);
+    console.error("Error creating system mail:", error);
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 });
@@ -67,9 +55,18 @@ router.get("/mails/:userId", async (req, res) => {
       return res.status(404).json({ message: "User not found." });
     }
 
-    // Find mails where the user is a recipient
+    // Find all mails for this user:
+    // 1. Personal mails where user is a recipient
+    // 2. System mails that haven't expired
     const mails = await Mail.find({
-      "recipients.userId": userId,
+      $or: [
+        { "recipients.userId": userId },
+        {
+          isSystemMail: true,
+          sendToAllUsers: true,
+          expiryDate: { $gt: new Date() }
+        }
+      ]
     }).sort({ date: -1 });
 
     // Transform mails to match the frontend format
@@ -84,10 +81,10 @@ router.get("/mails/:userId", async (req, res) => {
         content: mail.content,
         date: mail.date.toISOString(),
         expiryDate: mail.expiryDate?.toISOString(),
-        read: recipient.read,
+        read: recipient?.read || false,
         mailType: mail.mailType,
         rewardAmount: mail.rewardAmount || 0,
-        rewardClaimed: recipient.rewardClaimed || false,
+        rewardClaimed: recipient?.rewardClaimed || false,
       };
     });
 
@@ -105,10 +102,7 @@ router.put("/mail/:id/read", async (req, res) => {
     const { userId } = req.body;
 
     // Validate IDs
-    if (
-      !mongoose.Types.ObjectId.isValid(id) ||
-      !mongoose.Types.ObjectId.isValid(userId)
-    ) {
+    if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({ message: "Invalid ID format." });
     }
 
@@ -118,20 +112,33 @@ router.put("/mail/:id/read", async (req, res) => {
       return res.status(404).json({ message: "Mail not found." });
     }
 
-    // Check if user is a recipient
-    const recipient = mail.recipients.find(
-      (r) => r.userId.toString() === userId
-    );
-    if (!recipient) {
-      return res
-        .status(403)
-        .json({ message: "User is not a recipient of this mail." });
+    // For system mails, add user to recipients if not already there
+    if (mail.isSystemMail && mail.sendToAllUsers) {
+      const existingRecipient = mail.recipients.find(
+        (r) => r.userId.toString() === userId
+      );
+
+      if (!existingRecipient) {
+        mail.recipients.push({
+          userId,
+          read: true,
+          receivedAt: new Date()
+        });
+      } else {
+        existingRecipient.read = true;
+      }
+    } else {
+      // For personal mails, update existing recipient
+      const recipient = mail.recipients.find(
+        (r) => r.userId.toString() === userId
+      );
+      if (!recipient) {
+        return res.status(403).json({ message: "User is not a recipient of this mail." });
+      }
+      recipient.read = true;
     }
 
-    // Update read status
-    recipient.read = true;
     await mail.save();
-
     res.status(200).json({ message: "Mail marked as read." });
   } catch (error) {
     console.error("Error marking mail as read:", error);
@@ -146,10 +153,7 @@ router.put("/mail/:id/claim-reward", async (req, res) => {
     const { userId } = req.body;
 
     // Validate IDs
-    if (
-      !mongoose.Types.ObjectId.isValid(id) ||
-      !mongoose.Types.ObjectId.isValid(userId)
-    ) {
+    if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({ message: "Invalid ID format." });
     }
 
@@ -161,24 +165,41 @@ router.put("/mail/:id/claim-reward", async (req, res) => {
 
     // Check if mail is a reward mail
     if (mail.mailType !== "reward") {
-      return res
-        .status(400)
-        .json({ message: "This mail has no reward to claim." });
+      return res.status(400).json({ message: "This mail has no reward to claim." });
     }
 
-    // Check if user is a recipient
-    const recipient = mail.recipients.find(
-      (r) => r.userId.toString() === userId
-    );
-    if (!recipient) {
-      return res
-        .status(403)
-        .json({ message: "User is not a recipient of this mail." });
-    }
+    // For system mails, add user to recipients if not already there
+    if (mail.isSystemMail && mail.sendToAllUsers) {
+      const existingRecipient = mail.recipients.find(
+        (r) => r.userId.toString() === userId
+      );
 
-    // Check if reward already claimed
-    if (recipient.rewardClaimed) {
-      return res.status(400).json({ message: "Reward already claimed." });
+      if (!existingRecipient) {
+        mail.recipients.push({
+          userId,
+          read: true,
+          rewardClaimed: true,
+          receivedAt: new Date()
+        });
+      } else if (existingRecipient.rewardClaimed) {
+        return res.status(400).json({ message: "Reward already claimed." });
+      } else {
+        existingRecipient.rewardClaimed = true;
+        existingRecipient.read = true;
+      }
+    } else {
+      // For personal mails, update existing recipient
+      const recipient = mail.recipients.find(
+        (r) => r.userId.toString() === userId
+      );
+      if (!recipient) {
+        return res.status(403).json({ message: "User is not a recipient of this mail." });
+      }
+      if (recipient.rewardClaimed) {
+        return res.status(400).json({ message: "Reward already claimed." });
+      }
+      recipient.rewardClaimed = true;
+      recipient.read = true;
     }
 
     // Find user and update coins
@@ -194,9 +215,6 @@ router.put("/mail/:id/claim-reward", async (req, res) => {
     user.coins = (user.coins || 0) + rewardAmount;
     await user.save();
 
-    // Mark reward as claimed
-    recipient.rewardClaimed = true;
-    recipient.read = true; // Also mark as read
     await mail.save();
 
     res.status(200).json({
@@ -222,13 +240,6 @@ const cleanupExpiredMails = async () => {
     console.error("Error during mail cleanup:", error);
   }
 };
-
-// Run cleanup every day
-const CLEANUP_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
-setInterval(cleanupExpiredMails, CLEANUP_INTERVAL);
-
-// Run cleanup once when server starts
-cleanupExpiredMails();
 
 // Delete mail
 router.delete("/mail/:id", async (req, res) => {
