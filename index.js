@@ -10,21 +10,21 @@ import commentRoutes from "./routes/commentRoutes.js";
 
 const app = express();
 
-const mongoURL =
-  "mongodb+srv://madisettydharmadeep:cozyminds@cozyminds.yth43.mongodb.net/?retryWrites=true&w=majority&appName=cozyminds";
-app.use(
-  cors({
-    origin: "https://starlitjournals.vercel.app",
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-  })
-);
+// const mongoURL =
+//   "mongodb+srv://madisettydharmadeep:cozyminds@cozyminds.yth43.mongodb.net/?retryWrites=true&w=majority&appName=cozyminds";
+// app.use(
+//   cors({
+//     origin: "https://starlitjournals.vercel.app",
+//     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+//     allowedHeaders: ["Content-Type", "Authorization"],
+//     credentials: true,
+//   })
+// );
 
 // Handle preflight requests
 app.options("*", cors());
 
-// const mongoURL = "mongodb://localhost:27017/CozyMind";
+const mongoURL = "mongodb://localhost:27017/CozyMind";
 app.use(cors());
 
 app.use(express.json());
