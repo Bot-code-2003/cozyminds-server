@@ -60,7 +60,8 @@ router.get("/journals/public", async (req, res) => {
           mood: 1,
           tags: 1,
           slug: 1,
-          commentCount: 1
+          commentCount: 1,
+          saved: 1
         }
       },
       { $sort: sortOption },
@@ -665,6 +666,7 @@ router.get("/journals/with-comments", async (req, res) => {
           tags: 1,
           slug: 1,
           commentCount: 1,
+          saved: 1
         },
       },
       { $sort: sortOption },

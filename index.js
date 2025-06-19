@@ -69,9 +69,9 @@ app.get("/proxy-image", async (req, res) => {
 });
 
 // Connect to MongoDB and start the server
-// const mongoURL = "mongodb://localhost:27017/CozyMind";
-const mongoURL =
-  "mongodb+srv://madisettydharmadeep:cozyminds@cozyminds.yth43.mongodb.net/?retryWrites=true&w=majority&appName=cozyminds";
+const mongoURL = "mongodb://localhost:27017/CozyMind";
+// const mongoURL =
+//   "mongodb+srv://madisettydharmadeep:cozyminds@cozyminds.yth43.mongodb.net/?retryWrites=true&w=majority&appName=cozyminds";
 
 mongoose
   .connect(mongoURL)

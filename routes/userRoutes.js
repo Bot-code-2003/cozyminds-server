@@ -663,4 +663,71 @@ router.delete("/user/:id", async (req, res) => {
   }
 });
 
+// Get a user's saved journals (paginated)
+router.get("/users/:userId/saved-journals", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = 9;
+    const skip = (page - 1) * limit;
+
+    const user = await User.findById(userId).populate({
+      path: "savedJournals",
+      options: { sort: { date: -1 }, skip, limit },
+    });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const total = user.savedJournals.length;
+    const journals = user.savedJournals;
+    const hasMore = total > page * limit;
+
+    res.json({ journals, hasMore });
+  } catch (err) {
+    console.error("Error fetching saved journals:", err);
+    res.status(500).json({ message: "Failed to fetch saved journals" });
+  }
+});
+
+// Save a journal for a user
+router.post("/users/:userId/save-journal", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { journalId } = req.body;
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user.savedJournals.includes(journalId)) {
+      user.savedJournals.push(journalId);
+      await user.save();
+    }
+    // Also add userId to the journal's saved array
+    const Journal = (await import("../models/Journal.js")).default;
+    await Journal.findByIdAndUpdate(journalId, { $addToSet: { saved: userId } });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Error saving journal:", err);
+    res.status(500).json({ message: "Failed to save journal" });
+  }
+});
+
+// Unsave a journal for a user
+router.post("/users/:userId/unsave-journal", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { journalId } = req.body;
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    user.savedJournals = user.savedJournals.filter(
+      (id) => id.toString() !== journalId
+    );
+    await user.save();
+    // Also remove userId from the journal's saved array
+    const Journal = (await import("../models/Journal.js")).default;
+    await Journal.findByIdAndUpdate(journalId, { $pull: { saved: userId } });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Error unsaving journal:", err);
+    res.status(500).json({ message: "Failed to unsave journal" });
+  }
+});
+
 export default router;

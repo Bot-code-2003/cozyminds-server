@@ -75,6 +75,13 @@ const journalSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    // Add saved array for users who saved this journal
+    saved: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
     // Add author name for public journals
     authorName: {
       type: String,
