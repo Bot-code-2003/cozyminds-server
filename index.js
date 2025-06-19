@@ -1,4 +1,3 @@
-// index.js
 import express, { urlencoded } from "express";
 import mongoose from "mongoose";
 import cors from "cors";
@@ -7,40 +6,52 @@ import journalRoutes from "./routes/journalRoutes.js";
 import mailRoutes from "./routes/mailRoutes.js";
 import subscriptionRoutes from "./routes/subscriptionRoutes.js";
 import commentRoutes from "./routes/commentRoutes.js";
+import axios from "axios"; // Ensure axios is imported for proxy-image route
 
 const app = express();
 
-const mongoURL =
-  "mongodb+srv://madisettydharmadeep:cozyminds@cozyminds.yth43.mongodb.net/?retryWrites=true&w=majority&appName=cozyminds";
+// Define allowed origins
+const allowedOrigins = [
+  "http://localhost:5173", // Development
+  "https://starlitjournals.vercel.app", // Production
+];
+
+// CORS configuration
 app.use(
   cors({
-    origin: "https://starlitjournals.vercel.app",
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g., Postman, curl) or allowed origins
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, origin || "*");
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true, // Allow cookies/credentials
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
   })
 );
 
-// Handle preflight requests
+// Handle preflight requests explicitly (optional, as cors middleware handles it)
 app.options("*", cors());
-
-// const mongoURL = "mongodb://localhost:27017/CozyMind";
-app.use(cors());
 
 app.use(express.json());
 app.use(urlencoded({ extended: true }));
+
 // Root route
 app.get("/", (req, res) => {
   res.send("Hello from Starlit Journals!");
 });
 
 // Use routers
-app.use("/", userRoutes); // All user routes under /api
-app.use("/", journalRoutes); // All journal routes under /api
-app.use("/", mailRoutes); // Add mail routes
+app.use("/", userRoutes);
+app.use("/", journalRoutes);
+app.use("/", mailRoutes);
 app.use("/", subscriptionRoutes);
-app.use("/", commentRoutes); // Add comment routes
+app.use("/", commentRoutes);
 
+// Proxy image route
 app.get("/proxy-image", async (req, res) => {
   const imageUrl = req.query.url;
   if (!imageUrl) {
@@ -58,6 +69,10 @@ app.get("/proxy-image", async (req, res) => {
 });
 
 // Connect to MongoDB and start the server
+// const mongoURL = "mongodb://localhost:27017/CozyMind";
+const mongoURL =
+  "mongodb+srv://madisettydharmadeep:cozyminds@cozyminds.yth43.mongodb.net/?retryWrites=true&w=majority&appName=cozyminds";
+
 mongoose
   .connect(mongoURL)
   .then(() => {
@@ -65,7 +80,7 @@ mongoose
       console.log("Server is running on port 3000");
     });
   })
-  .catch((error) => console.log(error));
+  .catch((error) => console.log("MongoDB connection error:", error));
 
 // export const handler = serverless(app);
 
