@@ -580,11 +580,11 @@ router.put("/user/:id/password", async (req, res) => {
       return res.status(400).json({ message: "Invalid user ID format." });
     }
 
-    // Validate password
-    if (!newPassword || newPassword.length < 6) {
+    // Validate password (no minimum length)
+    if (!newPassword) {
       return res
         .status(400)
-        .json({ message: "Password must be at least 6 characters long." });
+        .json({ message: "Password is required." });
     }
 
     // Find and update the user's password
