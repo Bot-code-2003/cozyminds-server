@@ -693,4 +693,58 @@ router.get("/journals/with-comments", async (req, res) => {
   }
 })
 
+// Get up to 5 recommended public journals based on tags and mood
+router.get("/journals/recommendations/:slug", async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const currentJournal = await Journal.findOne({ slug, isPublic: true });
+    if (!currentJournal) {
+      return res.status(404).json({ message: "Journal not found" });
+    }
+
+    // Find recommendations: match tags, then mood, exclude current
+    const tagMatch = {
+      isPublic: true,
+      slug: { $ne: slug },
+      tags: { $in: currentJournal.tags },
+    };
+    const moodMatch = {
+      isPublic: true,
+      slug: { $ne: slug },
+      mood: currentJournal.mood,
+    };
+
+    // Get tag-based recommendations (limit 5)
+    let tagRecs = await Journal.find(tagMatch)
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .lean();
+    // Remove duplicates by _id
+    const seen = new Set();
+    tagRecs = tagRecs.filter(j => {
+      if (seen.has(j._id.toString())) return false;
+      seen.add(j._id.toString());
+      return true;
+    });
+
+    // If less than 5, fill with mood-based recommendations
+    let moodRecs = [];
+    if (tagRecs.length < 5) {
+      moodRecs = await Journal.find(moodMatch)
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .lean();
+      moodRecs = moodRecs.filter(j => !seen.has(j._id.toString()));
+    }
+
+    // Combine and limit to 5
+    const recommendations = [...tagRecs, ...moodRecs].slice(0, 5);
+
+    res.json({ recommendations });
+  } catch (error) {
+    console.error("Error fetching recommendations:", error);
+    res.status(500).json({ message: "Error fetching recommendations", error: error.message });
+  }
+});
+
 export default router;
