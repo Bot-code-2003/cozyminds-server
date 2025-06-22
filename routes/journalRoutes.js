@@ -204,7 +204,8 @@ router.get("/journals/top-by-mood", async (req, res) => {
             title: 1,
             slug: 1,
             authorName: 1,
-            likeCount: 1
+            likeCount: 1,
+            content: 1
           }
         }
       ];
