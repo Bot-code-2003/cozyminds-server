@@ -145,6 +145,10 @@ const userSchema = new mongoose.Schema(
       type: [Object],
       default: [],
     },
+    agreedToTerms: {
+      type: Boolean,
+      required: true,
+    },
   },
   { timestamps: true }
 );

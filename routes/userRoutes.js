@@ -17,6 +17,61 @@ const mailTemplates = JSON.parse(readFileSync(mailTemplatesPath, "utf-8"));
 
 const router = express.Router();
 
+// --- Admin Routes for SiteMaster ---
+
+// Get all users with optional search
+router.get("/users", async (req, res) => {
+  try {
+    const { search } = req.query;
+    let query = {};
+
+    if (search) {
+      const searchRegex = new RegExp(search, "i"); // Case-insensitive search
+      query = {
+        $or: [{ nickname: searchRegex }, { email: searchRegex }],
+      };
+    }
+
+    const users = await User.find(query).select("nickname email coins createdAt").sort({ createdAt: -1 });
+    res.status(200).json(users);
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+});
+
+// Grant coins to a user
+router.post("/users/grant-coins", async (req, res) => {
+  try {
+    const { userId, amount } = req.body;
+
+    if (!userId || !amount) {
+      return res.status(400).json({ message: "User ID and amount are required." });
+    }
+
+    const amountNum = parseInt(amount, 10);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      return res.status(400).json({ message: "Invalid amount specified." });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    user.coins = (user.coins || 0) + amountNum;
+    await user.save();
+
+    res.status(200).json({
+      message: `Successfully granted ${amountNum} coins to ${user.nickname}.`,
+      user,
+    });
+  } catch (error) {
+    console.error("Error granting coins:", error);
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+});
+
 // Configuration for email automation
 const EMAIL_CONFIG = {
   MAX_EMAILS_PER_LOGIN: 2,
@@ -445,28 +500,6 @@ const generateAnonymousName = (nickname) => {
 
   return `${adj}${noun}${hash}`;
 };
-
-// Get number of users
-router.get("/users", async (req, res) => {
-  try {
-    // Add a timeout to the database operation
-    const users = await Promise.race([
-      User.countDocuments(),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Database operation timed out')), 5000)
-      )
-    ]);
-    
-    res.status(200).json({ users });
-  } catch (error) {
-    console.error("Error fetching users:", error);
-    // Send a more specific error message
-    res.status(500).json({ 
-      message: "Failed to fetch user count", 
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
-  }
-});
 
 // Get user data
 router.get("/user/:id", async (req, res) => {

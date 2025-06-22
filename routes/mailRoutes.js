@@ -5,6 +5,74 @@ import User from "../models/User.js";
 
 const router = express.Router();
 
+// Send mail to a specific user or all users (SiteMaster only)
+router.post("/send-system-mail", async (req, res) => {
+  try {
+    const { 
+      sender = "Starlit Journals Team",
+      title, 
+      content, 
+      recipientType, // 'all' or 'specific'
+      recipientId,   // userId if recipientType is 'specific'
+      mailType = "other", 
+      expiryDate 
+    } = req.body;
+
+    // Validate required fields
+    if (!title || !content || !recipientType) {
+      return res.status(400).json({ message: "Title, content, and recipient type are required." });
+    }
+
+    let newMail;
+
+    if (recipientType === 'all') {
+      newMail = new Mail({
+        sender,
+        title,
+        content,
+        mailType,
+        isSystemMail: true,
+        sendToAllUsers: true,
+        date: new Date(),
+        expiryDate: expiryDate || new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), // 10 days default
+      });
+      await newMail.save();
+    } else if (recipientType === 'specific') {
+      if (!recipientId || !mongoose.Types.ObjectId.isValid(recipientId)) {
+        return res.status(400).json({ message: "A valid recipient user ID is required." });
+      }
+
+      const user = await User.findById(recipientId);
+      if (!user) {
+        return res.status(404).json({ message: "Recipient user not found." });
+      }
+
+      newMail = new Mail({
+        sender,
+        title,
+        content,
+        mailType,
+        isSystemMail: true,
+        sendToAllUsers: false,
+        recipients: [{ userId: recipientId, read: false, rewardClaimed: false, receivedAt: new Date() }],
+        date: new Date(),
+        expiryDate: expiryDate || new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
+      });
+      await newMail.save();
+    } else {
+      return res.status(400).json({ message: "Invalid recipient type." });
+    }
+
+    res.status(201).json({
+      message: "System mail sent successfully!",
+      mail: newMail,
+    });
+  } catch (error) {
+    console.error("Error creating system mail:", error);
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+});
+
 // Send mail to all users (SiteMaster only)
 router.post("/sendMail", async (req, res) => {
   try {

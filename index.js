@@ -6,6 +6,7 @@ import journalRoutes from "./routes/journalRoutes.js";
 import mailRoutes from "./routes/mailRoutes.js";
 import subscriptionRoutes from "./routes/subscriptionRoutes.js";
 import commentRoutes from "./routes/commentRoutes.js";
+import sitemapRoutes from "./routes/sitemapRoutes.js";
 import axios from "axios"; // Ensure axios is imported for proxy-image route
 
 const app = express();
@@ -50,6 +51,7 @@ app.use("/", journalRoutes);
 app.use("/", mailRoutes);
 app.use("/", subscriptionRoutes);
 app.use("/", commentRoutes);
+app.use("/api", sitemapRoutes);
 
 // Proxy image route
 // app.get("/proxy-image", async (req, res) => {
