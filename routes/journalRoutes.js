@@ -188,11 +188,9 @@ router.get("/journals/with-comments", async (req, res) => {
 // Get top 5 liked posts for each mood category
 router.get("/journals/top-by-mood", async (req, res) => {
   try {
-    const moods = [
-      "Happy", "Grateful", "Inspired", "Productive", "Relaxed", 
-      "Hopeful", "Reflective", "Sad", "Anxious", "Tired"
-    ];
-    
+    // Get all unique moods from public journals
+    const moods = await Journal.distinct("mood", { isPublic: true });
+
     const facetPipelines = {};
     moods.forEach(mood => {
       facetPipelines[mood] = [
@@ -212,10 +210,7 @@ router.get("/journals/top-by-mood", async (req, res) => {
     });
 
     const results = await Journal.aggregate([{ $facet: facetPipelines }]);
-
-    // The result is an array with a single object, where keys are the moods
     res.json(results[0]);
-
   } catch (error) {
     console.error("Error fetching top journals by mood:", error);
     res.status(500).json({ message: "Error fetching top journals by mood", error: error.message });
