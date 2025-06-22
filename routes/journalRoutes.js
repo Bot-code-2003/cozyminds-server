@@ -189,8 +189,23 @@ router.get("/journals/with-comments", async (req, res) => {
 router.get("/journals/top-by-mood", async (req, res) => {
   try {
     const moods = [
-      "Happy", "Grateful", "Inspired", "Productive", "Relaxed", 
-      "Hopeful", "Reflective", "Sad", "Anxious", "Tired"
+      "Happy",
+      "Neutral",
+      "Sad",
+      "Angry",
+      "Anxious",
+      "Tired",
+      "Reflective",
+      "Excited",
+      "Grateful",
+      "Funny",
+      "Inspired",
+      "Disappointed",
+      "Scared",
+      "Imaginative",
+      "Productive",
+      "Relaxed",
+      "Hopeful"
     ];
     
     const facetPipelines = {};
