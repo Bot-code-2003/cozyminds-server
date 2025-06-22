@@ -5,6 +5,8 @@ import User from "../models/User.js";
 
 const router = express.Router();
 
+// --- Specific Journal Routes (Static Paths) ---
+
 // Get public journals with pagination and sorting
 router.get("/journals/public", async (req, res) => {
   try {
@@ -89,6 +91,137 @@ router.get("/journals/public", async (req, res) => {
     });
   }
 });
+
+router.get("/journals/journalscount", async (req, res) => {
+  try {
+    const count = await Journal.countDocuments();
+    res.status(200).json({ count });
+  } catch (error) {
+    console.error("Error fetching journal count:", error);
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+});
+
+// Add this route to get comment count for journals
+router.get("/journals/with-comments", async (req, res) => {
+  try {
+    const page = Number.parseInt(req.query.page) || 1
+    const limit = Number.parseInt(req.query.limit) || 10
+    const sort = req.query.sort || "-createdAt"
+    const skip = (page - 1) * limit
+
+    if (page < 1 || limit < 1 || limit > 100) {
+      return res.status(400).json({ message: "Invalid page or limit value" })
+    }
+
+    let sortOption
+    switch (sort) {
+      case "likeCount":
+        sortOption = { likeCount: -1, createdAt: -1 }
+        break
+      case "createdAt":
+        sortOption = { createdAt: 1 }
+        break
+      case "-createdAt":
+        sortOption = { createdAt: -1 }
+        break
+      default:
+        return res.status(400).json({ message: "Invalid sort parameter" })
+    }
+
+    // Aggregate to get journals with comment counts
+    const journals = await Journal.aggregate([
+      { $match: { isPublic: true } },
+      {
+        $lookup: {
+          from: "comments",
+          localField: "_id",
+          foreignField: "journalId",
+          as: "comments",
+        },
+      },
+      {
+        $addFields: {
+          commentCount: { $size: "$comments" },
+        },
+      },
+      {
+        $project: {
+          title: 1,
+          content: 1,
+          authorName: 1,
+          createdAt: 1,
+          likeCount: 1,
+          likes: 1,
+          theme: 1,
+          mood: 1,
+          tags: 1,
+          slug: 1,
+          commentCount: 1,
+          saved: 1
+        },
+      },
+      { $sort: sortOption },
+      { $skip: skip },
+      { $limit: limit },
+    ])
+
+    const totalJournals = await Journal.countDocuments({ isPublic: true })
+    const hasMore = skip + journals.length < totalJournals
+
+    res.json({
+      journals,
+      hasMore,
+      page,
+      limit,
+      total: totalJournals,
+    })
+  } catch (error) {
+    console.error("Error fetching journals with comments:", error)
+    res.status(500).json({
+      message: "Error fetching journals",
+      error: error.message,
+    })
+  }
+})
+
+// Get top 5 liked posts for each mood category
+router.get("/journals/top-by-mood", async (req, res) => {
+  try {
+    const moods = [
+      "Happy", "Grateful", "Inspired", "Productive", "Relaxed", 
+      "Hopeful", "Reflective", "Sad", "Anxious", "Tired"
+    ];
+    
+    const facetPipelines = {};
+    moods.forEach(mood => {
+      facetPipelines[mood] = [
+        { $match: { isPublic: true, mood: mood } },
+        { $sort: { likeCount: -1, createdAt: -1 } },
+        { $limit: 5 },
+        {
+          $project: {
+            title: 1,
+            slug: 1,
+            authorName: 1,
+            likeCount: 1
+          }
+        }
+      ];
+    });
+
+    const results = await Journal.aggregate([{ $facet: facetPipelines }]);
+
+    // The result is an array with a single object, where keys are the moods
+    res.json(results[0]);
+
+  } catch (error) {
+    console.error("Error fetching top journals by mood:", error);
+    res.status(500).json({ message: "Error fetching top journals by mood", error: error.message });
+  }
+});
+
+// --- Dynamic Journal Routes (with /:params) ---
 
 // Get journals from followed users
 router.get("/feed/:userId", async (req, res) => {
@@ -185,15 +318,236 @@ router.get("/journals/recent/:userId", async (req, res) => {
   }
 });
 
-router.get("/journals/journalscount", async (req, res) => {
+router.get("/journals/singlepublic/:slug", async (req, res) => {
   try {
-    const count = await Journal.countDocuments();
-    res.status(200).json({ count });
+    const { slug } = req.params;
+
+    const journal = await Journal.findOne({ slug, isPublic: true }).populate({
+      path: "userId",
+      select: "anonymousName",
+    });
+
+    if (!journal) return res.status(404).json({ message: "Journal not found" });
+
+    const transformedJournal = {
+      ...journal.toObject(),
+      author: { anonymousName: journal.userId.anonymousName },
+    };
+
+    res.json(transformedJournal);
   } catch (error) {
-    console.error("Error fetching journal count:", error);
+    console.error("Error fetching public journal:", error);
+    res
+      .status(500)
+      .json({ message: "Error fetching public journal", error: error.message });
+  }
+});
+
+// Get up to 5 recommended public journals based on tags and mood
+router.get("/journals/recommendations/:slug", async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const currentJournal = await Journal.findOne({ slug, isPublic: true });
+    if (!currentJournal) {
+      return res.status(404).json({ message: "Journal not found" });
+    }
+
+    // Find recommendations: match tags, then mood, exclude current
+    const tagMatch = {
+      isPublic: true,
+      slug: { $ne: slug },
+      tags: { $in: currentJournal.tags },
+    };
+    const moodMatch = {
+      isPublic: true,
+      slug: { $ne: slug },
+      mood: currentJournal.mood,
+    };
+
+    // Get tag-based recommendations (limit 5)
+    let tagRecs = await Journal.find(tagMatch)
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .lean();
+    // Remove duplicates by _id
+    const seen = new Set();
+    tagRecs = tagRecs.filter(j => {
+      if (seen.has(j._id.toString())) return false;
+      seen.add(j._id.toString());
+      return true;
+    });
+
+    // If less than 5, fill with mood-based recommendations
+    let moodRecs = [];
+    if (tagRecs.length < 5) {
+      moodRecs = await Journal.find(moodMatch)
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .lean();
+      moodRecs = moodRecs.filter(j => !seen.has(j._id.toString()));
+    }
+
+    // Combine and limit to 5
+    const recommendations = [...tagRecs, ...moodRecs].slice(0, 5);
+
+    res.json({ recommendations });
+  } catch (error) {
+    console.error("Error fetching recommendations:", error);
+    res.status(500).json({ message: "Error fetching recommendations", error: error.message });
+  }
+});
+
+// Get journals by tag
+router.get("/journals/by-tag/:tag", async (req, res) => {
+  try {
+    const { tag } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const sort = req.query.sort || "-createdAt";
+    const skip = (page - 1) * limit;
+
+    if (page < 1 || limit < 1 || limit > 100) {
+      return res.status(400).json({ message: "Invalid page or limit value" });
+    }
+
+    let sortOption;
+    switch (sort) {
+      case "likeCount":
+        sortOption = { likeCount: -1, createdAt: -1 };
+        break;
+      case "createdAt":
+        sortOption = { createdAt: 1 };
+        break;
+      case "-createdAt":
+        sortOption = { createdAt: -1 };
+        break;
+      default:
+        return res.status(400).json({ message: "Invalid sort parameter" });
+    }
+
+    const decodedTag = decodeURIComponent(tag);
+    const matchQuery = { 
+      isPublic: true, 
+      tags: { $in: [new RegExp(`^${decodedTag}$`, 'i')] } 
+    };
+
+    // Get journals with comment counts
+    const journals = await Journal.aggregate([
+      { $match: matchQuery },
+      {
+        $lookup: {
+          from: "comments",
+          localField: "_id",
+          foreignField: "journalId",
+          as: "comments"
+        }
+      },
+      {
+        $addFields: {
+          commentCount: { $size: "$comments" }
+        }
+      },
+      {
+        $project: {
+          title: 1,
+          content: 1,
+          authorName: 1,
+          createdAt: 1,
+          likeCount: 1,
+          likes: 1,
+          theme: 1,
+          mood: 1,
+          tags: 1,
+          slug: 1,
+          commentCount: 1,
+          saved: 1
+        }
+      },
+      { $sort: sortOption },
+      { $skip: skip },
+      { $limit: limit }
+    ]);
+
+    const totalJournals = await Journal.countDocuments(matchQuery);
+    const hasMore = skip + journals.length < totalJournals;
+
+    res.json({
+      journals,
+      hasMore,
+      page,
+      limit,
+      total: totalJournals,
+      tag: decodedTag
+    });
+  } catch (error) {
+    console.error("Error fetching journals by tag:", error);
+    res.status(500).json({
+      message: "Error fetching journals by tag",
+      error: error.message,
+    });
+  }
+});
+
+// Get journal entries for a user (THIS IS THE CATCH-ALL DYNAMIC ROUTE)
+router.get("/journals/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid user ID format." });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    const journals = await Journal.find({ userId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const collections = [];
+    journals.forEach((journal) => {
+      if (journal.collections && Array.isArray(journal.collections)) {
+        journal.collections.forEach((collection) => {
+          if (!collections.includes(collection)) collections.push(collection);
+        });
+      }
+    });
+
+    res.status(200).json({ journals, collections });
+  } catch (error) {
+    console.error("Error fetching journals:", error);
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 });
+
+// Get journals by collection
+router.get("/journals/:userId/collection/:collection", async (req, res) => {
+  try {
+    const { userId, collection } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid user ID format." });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    const query = { userId };
+    if (collection !== "All") query.collections = collection;
+
+    const journals = await Journal.find(query).sort({ createdAt: -1 }).lean();
+    res.status(200).json({ journals });
+  } catch (error) {
+    console.error("Error fetching journals by collection:", error);
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+});
+
+// --- Other Routes ---
 
 // Update user streak
 async function updateUserStreak(userId, journalDate) {
@@ -412,40 +766,6 @@ router.delete("/collection/:userId/:collection", async (req, res) => {
   }
 });
 
-// Get journal entries for a user
-router.get("/journals/:userId", async (req, res) => {
-  try {
-    const { userId } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ message: "Invalid user ID format." });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found." });
-    }
-
-    const journals = await Journal.find({ userId })
-      .sort({ createdAt: -1 })
-      .lean();
-
-    const collections = [];
-    journals.forEach((journal) => {
-      if (journal.collections && Array.isArray(journal.collections)) {
-        journal.collections.forEach((collection) => {
-          if (!collections.includes(collection)) collections.push(collection);
-        });
-      }
-    });
-
-    res.status(200).json({ journals, collections });
-  } catch (error) {
-    console.error("Error fetching journals:", error);
-    res.status(500).json({ message: "Server Error", error: error.message });
-  }
-});
-
 // Get a specific journal entry
 router.get("/journal/:id", async (req, res) => {
   try {
@@ -463,31 +783,6 @@ router.get("/journal/:id", async (req, res) => {
     res.status(200).json({ journal });
   } catch (error) {
     console.error("Error fetching journal:", error);
-    res.status(500).json({ message: "Server Error", error: error.message });
-  }
-});
-
-// Get journals by collection
-router.get("/journals/:userId/collection/:collection", async (req, res) => {
-  try {
-    const { userId, collection } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ message: "Invalid user ID format." });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found." });
-    }
-
-    const query = { userId };
-    if (collection !== "All") query.collections = collection;
-
-    const journals = await Journal.find(query).sort({ createdAt: -1 }).lean();
-    res.status(200).json({ journals });
-  } catch (error) {
-    console.error("Error fetching journals by collection:", error);
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 });
@@ -587,168 +882,6 @@ router.post("/journals/:id/like", async (req, res) => {
   }
 });
 
-router.get("/journals/singlepublic/:slug", async (req, res) => {
-  try {
-    const { slug } = req.params;
-
-    const journal = await Journal.findOne({ slug, isPublic: true }).populate({
-      path: "userId",
-      select: "anonymousName",
-    });
-
-    if (!journal) return res.status(404).json({ message: "Journal not found" });
-
-    const transformedJournal = {
-      ...journal.toObject(),
-      author: { anonymousName: journal.userId.anonymousName },
-    };
-
-    res.json(transformedJournal);
-  } catch (error) {
-    console.error("Error fetching public journal:", error);
-    res
-      .status(500)
-      .json({ message: "Error fetching public journal", error: error.message });
-  }
-});
-
-// Add this route to get comment count for journals
-router.get("/journals/with-comments", async (req, res) => {
-  try {
-    const page = Number.parseInt(req.query.page) || 1
-    const limit = Number.parseInt(req.query.limit) || 10
-    const sort = req.query.sort || "-createdAt"
-    const skip = (page - 1) * limit
-
-    if (page < 1 || limit < 1 || limit > 100) {
-      return res.status(400).json({ message: "Invalid page or limit value" })
-    }
-
-    let sortOption
-    switch (sort) {
-      case "likeCount":
-        sortOption = { likeCount: -1, createdAt: -1 }
-        break
-      case "createdAt":
-        sortOption = { createdAt: 1 }
-        break
-      case "-createdAt":
-        sortOption = { createdAt: -1 }
-        break
-      default:
-        return res.status(400).json({ message: "Invalid sort parameter" })
-    }
-
-    // Aggregate to get journals with comment counts
-    const journals = await Journal.aggregate([
-      { $match: { isPublic: true } },
-      {
-        $lookup: {
-          from: "comments",
-          localField: "_id",
-          foreignField: "journalId",
-          as: "comments",
-        },
-      },
-      {
-        $addFields: {
-          commentCount: { $size: "$comments" },
-        },
-      },
-      {
-        $project: {
-          title: 1,
-          content: 1,
-          authorName: 1,
-          createdAt: 1,
-          likeCount: 1,
-          likes: 1,
-          theme: 1,
-          mood: 1,
-          tags: 1,
-          slug: 1,
-          commentCount: 1,
-          saved: 1
-        },
-      },
-      { $sort: sortOption },
-      { $skip: skip },
-      { $limit: limit },
-    ])
-
-    const totalJournals = await Journal.countDocuments({ isPublic: true })
-    const hasMore = skip + journals.length < totalJournals
-
-    res.json({
-      journals,
-      hasMore,
-      page,
-      limit,
-      total: totalJournals,
-    })
-  } catch (error) {
-    console.error("Error fetching journals with comments:", error)
-    res.status(500).json({
-      message: "Error fetching journals",
-      error: error.message,
-    })
-  }
-})
-
-// Get up to 5 recommended public journals based on tags and mood
-router.get("/journals/recommendations/:slug", async (req, res) => {
-  try {
-    const { slug } = req.params;
-    const currentJournal = await Journal.findOne({ slug, isPublic: true });
-    if (!currentJournal) {
-      return res.status(404).json({ message: "Journal not found" });
-    }
-
-    // Find recommendations: match tags, then mood, exclude current
-    const tagMatch = {
-      isPublic: true,
-      slug: { $ne: slug },
-      tags: { $in: currentJournal.tags },
-    };
-    const moodMatch = {
-      isPublic: true,
-      slug: { $ne: slug },
-      mood: currentJournal.mood,
-    };
-
-    // Get tag-based recommendations (limit 5)
-    let tagRecs = await Journal.find(tagMatch)
-      .sort({ createdAt: -1 })
-      .limit(10)
-      .lean();
-    // Remove duplicates by _id
-    const seen = new Set();
-    tagRecs = tagRecs.filter(j => {
-      if (seen.has(j._id.toString())) return false;
-      seen.add(j._id.toString());
-      return true;
-    });
-
-    // If less than 5, fill with mood-based recommendations
-    let moodRecs = [];
-    if (tagRecs.length < 5) {
-      moodRecs = await Journal.find(moodMatch)
-        .sort({ createdAt: -1 })
-        .limit(10)
-        .lean();
-      moodRecs = moodRecs.filter(j => !seen.has(j._id.toString()));
-    }
-
-    // Combine and limit to 5
-    const recommendations = [...tagRecs, ...moodRecs].slice(0, 5);
-
-    res.json({ recommendations });
-  } catch (error) {
-    console.error("Error fetching recommendations:", error);
-    res.status(500).json({ message: "Error fetching recommendations", error: error.message });
-  }
-});
-
 // Get popular topics (tags) based on likes
 router.get("/popular-topics", async (req, res) => {
   try {
@@ -781,7 +914,7 @@ router.get("/popular-topics", async (req, res) => {
           { 
             $match: { 
               isPublic: true, 
-              tags: { $in: [tagName] } 
+              tags: { $in: [new RegExp(`^${tagName}$`, 'i')] } 
             } 
           },
           {
@@ -940,97 +1073,6 @@ router.get("/journalscount", async (req, res) => {
   } catch (error) {
     console.error("Error counting journals:", error);
     res.status(500).json({ message: "Error counting journals", error: error.message });
-  }
-});
-
-// Get journals by tag
-router.get("/journals/by-tag/:tag", async (req, res) => {
-  try {
-    const { tag } = req.params;
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const sort = req.query.sort || "-createdAt";
-    const skip = (page - 1) * limit;
-
-    if (page < 1 || limit < 1 || limit > 100) {
-      return res.status(400).json({ message: "Invalid page or limit value" });
-    }
-
-    let sortOption;
-    switch (sort) {
-      case "likeCount":
-        sortOption = { likeCount: -1, createdAt: -1 };
-        break;
-      case "createdAt":
-        sortOption = { createdAt: 1 };
-        break;
-      case "-createdAt":
-        sortOption = { createdAt: -1 };
-        break;
-      default:
-        return res.status(400).json({ message: "Invalid sort parameter" });
-    }
-
-    const decodedTag = decodeURIComponent(tag);
-    const matchQuery = { 
-      isPublic: true, 
-      tags: { $in: [decodedTag] } 
-    };
-
-    // Get journals with comment counts
-    const journals = await Journal.aggregate([
-      { $match: matchQuery },
-      {
-        $lookup: {
-          from: "comments",
-          localField: "_id",
-          foreignField: "journalId",
-          as: "comments"
-        }
-      },
-      {
-        $addFields: {
-          commentCount: { $size: "$comments" }
-        }
-      },
-      {
-        $project: {
-          title: 1,
-          content: 1,
-          authorName: 1,
-          createdAt: 1,
-          likeCount: 1,
-          likes: 1,
-          theme: 1,
-          mood: 1,
-          tags: 1,
-          slug: 1,
-          commentCount: 1,
-          saved: 1
-        }
-      },
-      { $sort: sortOption },
-      { $skip: skip },
-      { $limit: limit }
-    ]);
-
-    const totalJournals = await Journal.countDocuments(matchQuery);
-    const hasMore = skip + journals.length < totalJournals;
-
-    res.json({
-      journals,
-      hasMore,
-      page,
-      limit,
-      total: totalJournals,
-      tag: decodedTag
-    });
-  } catch (error) {
-    console.error("Error fetching journals by tag:", error);
-    res.status(500).json({
-      message: "Error fetching journals by tag",
-      error: error.message,
-    });
   }
 });
 
