@@ -40,6 +40,7 @@ const mailSchema = new mongoose.Schema({
       "story",
       "streak",
       "weeklySummary",
+      "milestone"
     ],
     default: "welcome",
   },

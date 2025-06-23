@@ -76,16 +76,25 @@ router.post("/users/grant-coins", async (req, res) => {
 const EMAIL_CONFIG = {
   MAX_EMAILS_PER_LOGIN: 2,
   STREAK_MILESTONES: {
-    7: { reward: 50, key: "7day" },
+    7: { reward: 60, key: "7day" },
+    14: { reward: 80, key: "14day" },
     30: { reward: 150, key: "30day" },
     100: { reward: 300, key: "100day" },
-    365: { reward: 1000, key: "365day", special: "Journaling Legend Theme" },
+    200: { reward: 450, key: "200day" },
+    300: { reward: 600, key: "300day" },
+    365: { reward: 1200, key: "365day", special: "Journaling Legend Theme" },
   },
   ENTRY_MILESTONES: {
-    10: { reward: 25, key: "10entries" },
-    50: { reward: 150, key: "50entries" },
-    100: { reward: 250, key: "100entries" },
-    365: { reward: 750, key: "365entries", special: "Master Journaler Badge" },
+    1: { reward: 50, key: "1entry" },
+    5: { reward: 60, key: "5entries" },
+    10: { reward: 80, key: "10entries" },
+    20: { reward: 100, key: "20entries" },
+    30: { reward: 120, key: "30entries" },
+    50: { reward: 200, key: "50entries" },
+    100: { reward: 300, key: "100entries" },
+    200: { reward: 450, key: "200entries" },
+    300: { reward: 600, key: "300entries" },
+    365: { reward: 1200, key: "365entries", special: "Master Journaler Badge" },
   },
   MOOD_CHECK_MIN_ENTRIES: 3,
   MOOD_EMAIL_COOLDOWN_DAYS: 10,
@@ -185,9 +194,9 @@ router.post("/login", async (req, res) => {
         sender: template.sender,
         title: template.title,
         content: template.content,
-        recipients: [{ userId: user._id, read: false, rewardClaimed: reward ? false : undefined }],
-        mailType: "streak",
-        rewardAmount: reward,
+        recipients: [{ userId: user._id, read: false, rewardClaimed: template.rewardAmount ? false : undefined }],
+        mailType: "reward",
+        rewardAmount: template.rewardAmount,
         metadata: { milestone: parseInt(days), specialReward: special },
         date: new Date(),
         themeId: user.activeMailTheme,
@@ -208,9 +217,9 @@ router.post("/login", async (req, res) => {
         sender: template.sender,
         title: template.title,
         content: template.content,
-        recipients: [{ userId: user._id, read: false, rewardClaimed: reward ? false : undefined }],
-        mailType: "milestone",
-        rewardAmount: reward,
+        recipients: [{ userId: user._id, read: false, rewardClaimed: template.rewardAmount ? false : undefined }],
+        mailType: "reward",
+        rewardAmount: template.rewardAmount,
         metadata: { milestone: parseInt(count), specialReward: special },
         date: new Date(),
         themeId: user.activeMailTheme,
@@ -250,8 +259,9 @@ router.post("/login", async (req, res) => {
           title: moodTemplate.title,
           content: moodTemplate.content,
           recipients: [{ userId: user._id, read: false }],
-          mailType: "mood",
-          moodCategory: moodCategory,
+          mailType: "reward",
+          rewardAmount: moodTemplate.rewardAmount,
+          metadata: { milestone: 0, specialReward: null },
           date: new Date(),
           themeId: user.activeMailTheme,
         });
@@ -259,7 +269,9 @@ router.post("/login", async (req, res) => {
     }
 
     // 4. Weekly Summary Email
-    if (isFirstLoginOfWeek(lastVisited)) {
+    const lastSummary = user.lastWeeklySummarySent ? new Date(user.lastWeeklySummarySent) : null;
+    const shouldSendSummary = !lastSummary || (now - lastSummary) > 7 * 24 * 60 * 60 * 1000;
+    if (isFirstLoginOfWeek(lastVisited) && shouldSendSummary) {
       const recentWeeklySummary = await Mail.findOne({
         mailType: "weeklySummary",
         "recipients.userId": user._id,
@@ -300,20 +312,31 @@ router.post("/login", async (req, res) => {
 
           const template = getRandomTemplate(mailTemplates.weeklySummary);
           const randomPrompt = getRandomPrompt();
+          const publicCount = weeklyEntries.filter(e => e.isPublic).length;
+          const privateCount = weeklyEntries.length - publicCount;
+          const currentStreak = user.currentStreak || 0;
+          const totalEntries = await Journal.countDocuments({ userId: user._id });
           const content = template.content
             .replace("{entryCount}", weeklyEntries.length.toString())
+            .replace("{publicCount}", publicCount.toString())
+            .replace("{privateCount}", privateCount.toString())
             .replace("{mostFrequentMood}", mostFrequentMood)
             .replace("{preferredTime}", timeLabel)
-            .replace("{randomPrompt}", randomPrompt);
+            .replace("{randomPrompt}", randomPrompt)
+            .replace("{currentStreak}", currentStreak.toString())
+            .replace("{totalEntries}", totalEntries.toString());
           addMail({
             sender: template.sender,
             title: template.title,
             content: content,
             recipients: [{ userId: user._id, read: false }],
-            mailType: "weeklySummary",
+            mailType: "reward",
+            rewardAmount: template.rewardAmount,
+            metadata: { milestone: 0, specialReward: null },
             date: new Date(),
             themeId: user.activeMailTheme,
           });
+          user.lastWeeklySummarySent = now;
         }
       }
     }
@@ -337,7 +360,8 @@ router.post("/login", async (req, res) => {
               </div>
             </div>`,
             recipients: [{ userId: user._id, read: false }],
-            mailType: "story",
+            mailType: "reward",
+            rewardAmount: story.rewardAmount,
             metadata: { chapter: userCurrentChapter },
             date: new Date(),
             themeId: user.activeMailTheme,
@@ -407,7 +431,8 @@ router.post("/signup", async (req, res) => {
         title: welcomeTemplate.title,
         content: welcomeTemplate.content,
         recipients: [{ userId: user._id, read: false }],
-        mailType: "welcome",
+        mailType: "reward",
+        rewardAmount: welcomeTemplate.rewardAmount,
         date: new Date(),
         themeId: user.activeMailTheme,
       },

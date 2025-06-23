@@ -2,6 +2,7 @@ import express from "express";
 import mongoose from "mongoose";
 import User from "../models/User.js";
 import Journal from "../models/Journal.js";
+import Mail from "../models/Mail.js";
 
 const router = express.Router();
 
@@ -97,7 +98,23 @@ router.post("/subscribe", async (req, res) => {
         $addToSet: { subscribers: subscriberId },
         $inc: { subscriberCount: 1 }
       });
-      
+      // Send mail to target user if not self
+      if (subscriberId !== targetUserId) {
+        const follower = await User.findById(subscriberId);
+        const followed = await User.findById(targetUserId);
+        if (follower && followed) {
+          const senderName = follower.anonymousName || follower.nickname || 'Someone';
+          await Mail.create({
+            sender: senderName,
+            title: 'New Follower',
+            content: `${senderName} started following you.`,
+            recipients: [{ userId: targetUserId, read: false }],
+            mailType: 'other',
+            isSystemMail: true,
+            sendToAllUsers: false,
+          });
+        }
+      }
       res.json({ subscribed: true, message: "Subscribed successfully" });
     }
   } catch (error) {

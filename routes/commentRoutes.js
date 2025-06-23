@@ -3,6 +3,7 @@ import mongoose from "mongoose"
 import Comment from "../models/comment.js"
 import Journal from "../models/Journal.js"
 import User from "../models/User.js"
+import Mail from "../models/Mail.js"
 
 const router = express.Router()
 
@@ -93,6 +94,24 @@ router.post("/comments", async (req, res) => {
 
     await comment.save()
 
+    // Send mail to journal author if commenter is not the author
+    if (journal.userId.toString() !== userId) {
+      const journalAuthor = await User.findById(journal.userId);
+      if (journalAuthor) {
+        const senderName = user.anonymousName || user.nickname || 'Someone';
+        const journalUrl = `https://starlitjournals.vercel.app/public-journal/${journal.slug}`;
+        await Mail.create({
+          sender: senderName,
+          title: `New Comment on your post "${journal.title}"`,
+          content: `<div style="font-size:16px;margin-bottom:8px;"><b>${senderName}</b> commented on your post <b>"${journal.title}"</b>:</div><blockquote style="margin:8px 0;padding:8px 12px;background:#f3f4f6;border-left:4px solid #2563eb;border-radius:4px;font-style:italic;">${comment.content}</blockquote><a href="${journalUrl}" style="display:inline-block;padding:8px 16px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">View Journal</a>` ,
+          recipients: [{ userId: journal.userId, read: false }],
+          mailType: 'other',
+          isSystemMail: true,
+          sendToAllUsers: false,
+        });
+      }
+    }
+
     res.status(201).json({ comment })
   } catch (error) {
     console.error("Error creating comment:", error)
@@ -127,6 +146,25 @@ router.post("/comments/:commentId/like", async (req, res) => {
     } else {
       comment.likes.push(userId)
       comment.likeCount += 1
+      // Send mail to comment author if liker is not the author
+      if (comment.userId.toString() !== userId) {
+        const liker = await User.findById(userId);
+        const commentAuthor = await User.findById(comment.userId);
+        const journal = await Journal.findById(comment.journalId);
+        if (liker && commentAuthor && journal) {
+          const senderName = liker.anonymousName || liker.nickname || 'Someone';
+          const commentUrl = `https://starlitjournals.vercel.app/public-journal/${journal.slug}#comment-${comment._id}`;
+          await Mail.create({
+            sender: senderName,
+            title: `New Like on your comment (Post: "${journal.title}")`,
+            content: `<div style="font-size:16px;margin-bottom:8px;"><b>${senderName}</b> liked your comment on <b>"${journal.title}"</b>:</div><blockquote style="margin:8px 0;padding:8px 12px;background:#f3f4f6;border-left:4px solid #059669;border-radius:4px;font-style:italic;">${comment.content}</blockquote><a href="${commentUrl}" style="display:inline-block;padding:8px 16px;background:#059669;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">View Comment</a>` ,
+            recipients: [{ userId: comment.userId, read: false }],
+            mailType: 'other',
+            isSystemMail: true,
+            sendToAllUsers: false,
+          });
+        }
+      }
     }
 
     await comment.save()

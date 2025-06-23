@@ -2,6 +2,7 @@ import express from "express";
 import mongoose from "mongoose";
 import Journal from "../models/Journal.js";
 import User from "../models/User.js";
+import Mail from "../models/Mail.js";
 
 const router = express.Router();
 
@@ -125,8 +126,16 @@ router.get("/journals/with-comments", async (req, res) => {
       case "-createdAt":
         sortOption = { createdAt: -1 }
         break
+      case "commentCount":
+        sortOption = { commentCount: -1, createdAt: -1 }
+        break
+      case "-commentCount":
+        sortOption = { commentCount: -1, createdAt: -1 }
+        break
       default:
-        return res.status(400).json({ message: "Invalid sort parameter" })
+        // Default to commentCount descending if invalid
+        sortOption = { commentCount: -1, createdAt: -1 }
+        break
     }
 
     // Aggregate to get journals with comment counts
@@ -864,6 +873,24 @@ router.post("/journals/:id/like", async (req, res) => {
     } else {
       journal.likes.push(userId);
       journal.likeCount += 1;
+      // Send mail to journal author if liker is not the author
+      if (journal.userId.toString() !== userId) {
+        const liker = await User.findById(userId);
+        const journalAuthor = await User.findById(journal.userId);
+        if (liker && journalAuthor) {
+          const senderName = liker.anonymousName || liker.nickname || 'Someone';
+          const journalUrl = `https://starlitjournals.vercel.app/public-journal/${journal.slug}`;
+          await Mail.create({
+            sender: senderName,
+            title: `New Like on your post \"${journal.title}\"`,
+            content: `<div style=\"font-size:16px;margin-bottom:8px;\"><b>${senderName}</b> liked your post <b>\"${journal.title}\"</b>.</div><a href=\"${journalUrl}\" style=\"display:inline-block;padding:8px 16px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;\">View Journal</a>` ,
+            recipients: [{ userId: journal.userId, read: false }],
+            mailType: 'other',
+            isSystemMail: true,
+            sendToAllUsers: false,
+          });
+        }
+      }
     }
 
     await journal.save();
@@ -992,12 +1019,12 @@ router.get("/popular-writers", async (req, res) => {
       },
       {
         $project: {
-          userId: "$_id",
+          userId: "$__id",
           authorName: 1,
           totalLikes: 1,
-          journalCount: 1,
           avgLikes: { $round: ["$avgLikes", 1] },
-          anonymousName: { $arrayElemAt: ["$user.anonymousName", 0] }
+          anonymousName: { $arrayElemAt: ["$user.anonymousName", 0] },
+          bio: { $arrayElemAt: ["$user.bio", 0] },
         }
       }
     ]);
