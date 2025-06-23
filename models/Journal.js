@@ -107,7 +107,6 @@ const journalSchema = new mongoose.Schema(
 // Index for faster queries
 journalSchema.index({ userId: 1, date: -1 });
 journalSchema.index({ isPublic: 1, date: -1 });
-journalSchema.index({ slug: 1 });
 
 const Journal = mongoose.model("Journal", journalSchema);
 export default Journal;

@@ -2,124 +2,74 @@
   "welcome": [
     {
       "sender": "Starlit Journals Team",
-      "title": "Welcome to Starlit Journals 🌟",
-      "content": "<div style=\"background-color: #1e293b; padding: 24px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); font-family: 'Segoe UI', sans-serif; color: #f1f5f9; line-height: 1.7; max-width: 700px; margin: auto; font-size: 16px;\">\n  <p style=\"font-size: 20px; font-weight: bold; margin-bottom: 16px;\">Hello and welcome to <span style=\\\"color: #f59e0b;\\\">Starlit Journals</span>! 🌟</p>\n\n  <p>We're so happy you've joined us. This is your safe and cozy space to write your thoughts, track your feelings, and grow one day at a time through journaling. 🌿</p>\n\n  <p>To help you begin, we've added <strong>50 coins</strong> to your account as a welcome gift! Claim it in the next mail. 🎁 You can use them in the <a href=\"/cozyshop\" style=\"color: #60a5fa; text-decoration: none;\">CozyShop</a> to unlock journal themes, sticker packs, and other fun rewards.</p>\n\n  <h3 style=\"margin-top: 24px;\">✨ What you can do here:</h3>\n\n  <ul style=\"padding-left: 20px; margin-top: 12px;\">\n    <li><strong>📝 Daily Journaling</strong> – Write about your day or how you're feeling by going to <a href=\"/journaling-alt\" style=\"color: #60a5fa; text-decoration: none;\">Start Journaling</a>.</li>\n\n    <li style=\"margin-top: 12px;\"><strong>🔥 Streak Milestones</strong> – Journal every day and earn coins when you hit milestones:<br>\n      • 7 days = 50 coins 🏆<br>\n      • 30 days = 150 coins 🎉<br>\n      • 100 days = 300 coins 👑<br>\n      • 365 days = 1000 coins + “Journaling Legend” theme 🌍\n    </li>\n\n    <li style=\"margin-top: 12px;\"><strong>📖 Entry Milestones</strong> – Get rewarded as you write more:<br>\n      • 10 entries = 25 coins ✍️<br>\n      • 50 entries = 150 coins 🌟<br>\n      • 100 entries = 250 coins 🏆<br>\n      • 365 entries = 750 coins + “Master Journaler” badge 🌈\n    </li>\n\n    <li style=\"margin-top: 12px;\"><strong>😊 Mood-Based Support</strong> – Choose how you're feeling each day. We'll send gentle, supportive notes based on your mood — whether you're happy, sad, or somewhere in between. 💖</li>\n\n    <li style=\"margin-top: 12px;\"><strong>📊 Weekly Summary</strong> – Get a personal mail every week with your writing stats, your most frequent mood, and a journal prompt to help you reflect and grow.</li>\n\n    <li style=\"margin-top: 12px;\"><strong>🎨 CozyShop</strong> – Visit the <a href=\"/cozyshop\" style=\"color: #60a5fa; text-decoration: none;\">CozyShop</a> to spend your coins and customize your journal with new themes and items.</li>\n\n    <li style=\"margin-top: 12px;\"><strong>🌍 Public Journals</strong> – Want to share your thoughts with the world? Mark entries as public to appear in the <a href=\"/public-journals\" style=\"color: #60a5fa; text-decoration: none;\">Public Journals Feed</a> where others can read, like, and follow your journey anonymously.</li>\n\n    <li style=\"margin-top: 12px;\"><strong>👤 Customize Your Profile</strong> – Set an anonymous name and more in <a href=\"/profile-settings\" style=\"color: #60a5fa; text-decoration: none;\">Profile Settings</a> so others can discover and follow your public posts safely.</li>\n\n    <li style=\"margin-top: 12px;\"><strong>📚 Your Personal Collection</strong> – All your private entries are safely stored in your <a href=\"/collections\" style=\"color: #60a5fa; text-decoration: none;\">Collections</a>. Only you can see them unless you choose to share.</li>\n  </ul>\n\n  <p style=\"margin-top: 24px;\">Whether you're here to reflect, express, heal, or just explore, we're here for you. Every entry you write is part of your personal journey—and we're so glad to be part of it. 🌈✨</p>\n\n  <p>Take a deep breath, open your heart, and <a href=\"/journaling-alt\" style=\"color: #60a5fa; text-decoration: none;\">start writing</a>. Happy journaling! 💖</p>\n</div>"
-
+      "title": "Welcome to Starlit Journals!",
+      "content": "Welcome to Starlit Journals! We're glad you're here. Start writing and enjoy your journey."
+    }
+  ],
+  "seasonal": [
+    {
+      "sender": "Starlit Journals Team",
+      "title": "Happy Valentine's Day!",
+      "content": "Wishing you a day filled with love and kindness. Take a moment to write something for yourself or someone you care about."
+    }
+  ],
+  "feedback": [
+    {
+      "sender": "Starlit Journals Team",
+      "title": "Help Us Improve (50 coins reward)",
+      "content": "It's your 3rd day! Please help us learn and improve by filling out this quick feedback form: https://tally.so/r/3xoNOo. As a thank you, you'll receive 50 coins!",
+      "rewardAmount": 50
     }
   ],
   "reward": [
     {
       "sender": "Starlit Journals Team",
-      "title": "Your Welcome Gift 🎁",
-      "content": "Welcome to Starlit Journals! We've added 50 coins to your account to kickstart your journey. Visit the CozyShop to personalize your experience. Enjoy! 🌈",
+      "title": "Your Welcome Gift",
+      "content": "We've added 50 coins to your account as a welcome gift. Enjoy journaling!",
       "rewardAmount": 50
     }
   ],
   "streakMilestone": {
     "7day": [
-      {
-        "sender": "Starlit Journals Team",
-        "title": "7-Day Streak Achieved! 🏆",
-        "content": "Amazing work journaling for 7 days straight! Here's 50 coins to celebrate your consistency. Keep it up! 🔥",
-        "rewardAmount": 50
-      }
+      { "sender": "Starlit Journals Team", "title": "7-Day Streak!", "content": "You've journaled for 7 days. Here's 50 coins!", "rewardAmount": 50 }
     ],
     "30day": [
-      {
-        "sender": "Starlit Journals Team",
-        "title": "30-Day Streak Milestone! 🎉",
-        "content": "A full month of journaling—wow! We're proud of your dedication and added 150 coins to your account. Keep shining! 🌟",
-        "rewardAmount": 150
-      }
+      { "sender": "Starlit Journals Team", "title": "30-Day Streak!", "content": "30 days of journaling! 150 coins for you.", "rewardAmount": 150 }
     ],
     "100day": [
-      {
-        "sender": "Starlit Journals Team",
-        "title": "100-Day Streak Legend! 👑",
-        "content": "100 days of journaling is incredible! You've earned 300 coins for your commitment. You're a journaling star! ✨",
-        "rewardAmount": 300
-      }
+      { "sender": "Starlit Journals Team", "title": "100-Day Streak!", "content": "100 days! 300 coins earned.", "rewardAmount": 300 }
     ],
     "365day": [
-      {
-        "sender": "Starlit Journals Team",
-        "title": "One Year of Journaling! 🌍",
-        "content": "A year of daily journaling—truly remarkable! Enjoy 1000 coins and the 'Journaling Legend' theme. We're in awe! 🏅",
-        "rewardAmount": 1000,
-        "specialReward": "Journaling Legend Theme"
-      }
+      { "sender": "Starlit Journals Team", "title": "1 Year Streak!", "content": "A year of journaling. 1000 coins and a special theme!", "rewardAmount": 1000, "specialReward": "Journaling Legend Theme" }
     ]
   },
   "entryMilestone": {
     "10entries": [
-      {
-        "sender": "Starlit Journals Team",
-        "title": "10 Entries Milestone! 📚",
-        "content": "You've written 10 journal entries—great job! Here's 25 coins to celebrate your growing story. Keep writing! ✍️",
-        "rewardAmount": 25
-      }
+      { "sender": "Starlit Journals Team", "title": "10 Entries!", "content": "You've written 10 entries. 25 coins for you!", "rewardAmount": 25 }
     ],
     "50entries": [
-      {
-        "sender": "Starlit Journals Team",
-        "title": "50 Entries Achieved! 📖",
-        "content": "Fifty entries is a huge milestone! We're celebrating with 150 coins for your dedication. Amazing work! 🌟",
-        "rewardAmount": 150
-      }
+      { "sender": "Starlit Journals Team", "title": "50 Entries!", "content": "50 entries! 150 coins earned.", "rewardAmount": 150 }
     ],
     "100entries": [
-      {
-        "sender": "Starlit Journals Team",
-        "title": "100 Entries Master! 🏆",
-        "content": "100 journal entries—wow! You've earned 250 coins for this incredible achievement. Keep reflecting! ✨",
-        "rewardAmount": 250
-      }
+      { "sender": "Starlit Journals Team", "title": "100 Entries!", "content": "100 entries! 250 coins for you.", "rewardAmount": 250 }
     ],
     "365entries": [
-      {
-        "sender": "Starlit Journals Team",
-        "title": "365 Entries Triumph! 📝",
-        "content": "A year's worth of entries is extraordinary! Enjoy 750 coins and the 'Master Journaler' badge. You're inspiring! 🌈",
-        "rewardAmount": 750,
-        "specialReward": "Master Journaler Badge"
-      }
-    ]
-  },
-  "moodBased": {
-    "sad": [
-      {
-        "sender": "Starlit Journals Team",
-        "title": "A Note of Support 🌧️",
-        "content": "We've noticed you're feeling down lately. Your feelings matter, and we're here for you. Try a small comfort today. 🕯️"
-      }
-    ],
-    "happy": [
-      {
-        "sender": "Starlit Journals Team",
-        "title": "Celebrating Your Joy! ☀️",
-        "content": "Your recent entries are full of happiness—love that! Keep savoring these moments. What's sparking your joy? 🎉"
-      }
-    ],
-    "mixed": [
-      {
-        "sender": "Starlit Journals Team",
-        "title": "Embracing All Feelings 🌈",
-        "content": "Your entries show a mix of emotions—that's beautifully human. Keep journaling to explore your heart. We're with you! 💖"
-      }
+      { "sender": "Starlit Journals Team", "title": "365 Entries!", "content": "A year's worth of entries! 750 coins and a badge.", "rewardAmount": 750, "specialReward": "Master Journaler Badge" }
     ]
   },
   "weeklySummary": [
     {
       "sender": "Starlit Journals Team",
-      "title": "Your Weekly Insights 📊",
-      "content": "This week: {entryCount} entries, mostly {mostFrequentMood}, written in the {preferredTime}. Reflect on this: {randomPrompt}. Keep journaling! 🌟"
+      "title": "Your Weekly Summary",
+      "content": "This week: {entryCount} entries, {publicCount} public, {privateCount} private. Most frequent mood: {mostFrequentMood}. Keep writing!"
     }
   ],
+  "prompt": [
+    { "sender": "Starlit Journals Team", "title": "Writing Prompt", "content": "Write about a small moment that made you smile recently." },
+    { "sender": "Starlit Journals Team", "title": "Writing Prompt", "content": "Describe a place where you feel most at peace." },
+    { "sender": "Starlit Journals Team", "title": "Writing Prompt", "content": "What is something you're looking forward to?" }
+  ],
   "mailThemes": {
-    "default": {
-      "styles": {},
-      "contentPrefixes": [""],
-      "contentSuffixes": [""]
-    }
+    "default": { "styles": {}, "contentPrefixes": [""], "contentSuffixes": [""] }
   }
 }

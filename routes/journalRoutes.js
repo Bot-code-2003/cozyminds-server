@@ -339,7 +339,6 @@ router.get("/journals/singlepublic/:slug", async (req, res) => {
   }
 });
 
-// Get up to 5 recommended public journals based on tags and mood
 router.get("/journals/recommendations/:slug", async (req, res) => {
   try {
     const { slug } = req.params;
@@ -360,10 +359,10 @@ router.get("/journals/recommendations/:slug", async (req, res) => {
       mood: currentJournal.mood,
     };
 
-    // Get tag-based recommendations (limit 5)
+    // Get tag-based recommendations (limit 20)
     let tagRecs = await Journal.find(tagMatch)
       .sort({ createdAt: -1 })
-      .limit(10)
+      .limit(20) // Changed from 10 to 20
       .lean();
     // Remove duplicates by _id
     const seen = new Set();
@@ -373,18 +372,18 @@ router.get("/journals/recommendations/:slug", async (req, res) => {
       return true;
     });
 
-    // If less than 5, fill with mood-based recommendations
+    // If less than 10, fill with mood-based recommendations
     let moodRecs = [];
-    if (tagRecs.length < 5) {
+    if (tagRecs.length < 10) { // Changed from 5 to 10
       moodRecs = await Journal.find(moodMatch)
         .sort({ createdAt: -1 })
-        .limit(10)
+        .limit(20) // Changed from 10 to 20
         .lean();
       moodRecs = moodRecs.filter(j => !seen.has(j._id.toString()));
     }
 
-    // Combine and limit to 5
-    const recommendations = [...tagRecs, ...moodRecs].slice(0, 5);
+    // Combine and limit to 10
+    const recommendations = [...tagRecs, ...moodRecs].slice(0, 10); // Changed from 5 to 10
 
     res.json({ recommendations });
   } catch (error) {
