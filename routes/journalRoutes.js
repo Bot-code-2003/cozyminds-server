@@ -1098,30 +1098,4 @@ router.get("/journalscount", async (req, res) => {
   }
 });
 
-// Add at the end of the file, before module.exports or export default
-router.post("/journals/:id/set-likes", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { likeCount, userId, anonymousName, username } = req.body;
-    if (!userId || typeof likeCount !== "number") {
-      return res.status(400).json({ message: "Missing userId or likeCount" });
-    }
-    // Fetch user
-    const user = await User.findById(userId);
-    if (!user || (user.anonymousName !== "ComfyNoodleUwU" && user.nickname !== "ComfyNoodleUwU" && username !== "ComfyNoodleUwU" && anonymousName !== "ComfyNoodleUwU")) {
-      return res.status(403).json({ message: "Forbidden: Not developer god" });
-    }
-    const journal = await Journal.findById(id);
-    if (!journal) {
-      return res.status(404).json({ message: "Journal not found" });
-    }
-    journal.likeCount = Math.max(0, likeCount);
-    await journal.save();
-    res.json({ likeCount: journal.likeCount });
-  } catch (error) {
-    console.error("Error setting like count:", error);
-    res.status(500).json({ message: "Error setting like count", error: error.message });
-  }
-});
-
 export default router;
