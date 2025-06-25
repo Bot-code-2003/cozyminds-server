@@ -40,7 +40,7 @@ const journalSchema = new mongoose.Schema(
         "Imaginative",
         "Productive",
         "Relaxed",
-        "Hopeful"
+        "Hopeful",
       ],
       required: true,
     },
@@ -104,9 +104,21 @@ const journalSchema = new mongoose.Schema(
   }
 );
 
-// Index for faster queries
+// Already present
 journalSchema.index({ userId: 1, date: -1 });
 journalSchema.index({ isPublic: 1, date: -1 });
+journalSchema.index({ slug: 1 });
+
+// 🔥 Strongly Recommended for performance
+journalSchema.index({ userId: 1, isPublic: 1, createdAt: -1 }); // for dashboard routes
+journalSchema.index({ tags: 1, isPublic: 1 }); // for tag searches
+journalSchema.index({ mood: 1, isPublic: 1 }); // for mood-based recommendations
+journalSchema.index({ collections: 1, userId: 1 }); // for collection filtering
+journalSchema.index({ saved: 1 }); // for saved journal queries
+journalSchema.index({ likeCount: -1, createdAt: -1 }); // for trending, top, etc.
+
+// ⚠️ Optional
+journalSchema.index({ authorName: 1 }); // used in popular writers
 
 const Journal = mongoose.model("Journal", journalSchema);
 export default Journal;

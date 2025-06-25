@@ -154,5 +154,33 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+//indexing for fast swiftness niggesh
+
+// For searching users by nickname or email
+userSchema.index({ nickname: 1 });
+userSchema.index({ email: 1 });
+
+// For login (email lookup)
+userSchema.index({ email: 1 }); // already covered by `unique: true`, but explicitly adding is fine
+
+// For sorting users by registration date in the admin dashboard
+userSchema.index({ createdAt: -1 });
+
+// For login-based features and weekly summaries
+userSchema.index({ lastVisited: -1 });
+
+// For quick filtering or leaderboard use cases
+userSchema.index({ coins: -1 });
+
+// For saved journals (get all saved journals of a user)
+userSchema.index({ savedJournals: 1 });
+
+// For story progression-based filtering
+userSchema.index({ "storyProgress.storyName": 1 });
+
+// For follower/following functionality
+userSchema.index({ subscribers: 1 });
+userSchema.index({ subscribedTo: 1 });
+
 const User = mongoose.model("User", userSchema);
 export default User;

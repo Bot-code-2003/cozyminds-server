@@ -40,7 +40,7 @@ const mailSchema = new mongoose.Schema({
       "story",
       "streak",
       "weeklySummary",
-      "milestone"
+      "milestone",
     ],
     default: "welcome",
   },
@@ -60,41 +60,46 @@ const mailSchema = new mongoose.Schema({
     type: Object,
     default: {},
   },
-  recipients: [{
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true
+  recipients: [
+    {
+      userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+      },
+      read: {
+        type: Boolean,
+        default: false,
+      },
+      rewardClaimed: {
+        type: Boolean,
+        default: false,
+      },
+      receivedAt: {
+        type: Date,
+        default: Date.now,
+      },
     },
-    read: {
-      type: Boolean,
-      default: false
-    },
-    rewardClaimed: {
-      type: Boolean,
-      default: false
-    },
-    receivedAt: {
-      type: Date,
-      default: Date.now
-    }
-  }],
+  ],
   isSystemMail: {
     type: Boolean,
-    default: false
+    default: false,
   },
   sendToAllUsers: {
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 });
 
 mailSchema.index({ date: -1 });
 mailSchema.index({ mailType: 1 });
-mailSchema.index({ 'recipients.userId': 1 });
+mailSchema.index({ "recipients.userId": 1 });
 mailSchema.index({ expiryDate: 1 });
 mailSchema.index({ isSystemMail: 1 });
 mailSchema.index({ sendToAllUsers: 1 });
+
+// ✅ Suggested new compound index for common $or filter
+mailSchema.index({ isSystemMail: 1, sendToAllUsers: 1, expiryDate: 1 });
 
 const Mail = mongoose.model("Mail", mailSchema);
 export default Mail;

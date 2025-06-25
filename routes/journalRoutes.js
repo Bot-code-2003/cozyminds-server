@@ -7,12 +7,21 @@ import Mail from "../models/Mail.js";
 const router = express.Router();
 
 // --- Specific Journal Routes (Static Paths) ---
-
-// Get public journals with pagination and sorting
-router.get("/journals/public", async (req, res) => {
+router.get("/journals/journalscount", async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
+    const count = await Journal.countDocuments();
+    res.status(200).json({ count });
+  } catch (error) {
+    console.error("Error fetching journal count:", error);
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+});
+
+// Add this route to get comment count for journals
+router.get("/journals/with-comments", async (req, res) => {
+  try {
+    const page = Number.parseInt(req.query.page) || 1;
+    const limit = Number.parseInt(req.query.limit) || 10;
     const sort = req.query.sort || "-createdAt";
     const skip = (page - 1) * limit;
 
@@ -31,110 +40,16 @@ router.get("/journals/public", async (req, res) => {
       case "-createdAt":
         sortOption = { createdAt: -1 };
         break;
-      default:
-        return res.status(400).json({ message: "Invalid sort parameter" });
-    }
-
-    const matchQuery = { isPublic: true };
-
-    const journals = await Journal.aggregate([
-      { $match: matchQuery },
-      {
-        $lookup: {
-          from: "comments",
-          localField: "_id",
-          foreignField: "journalId",
-          as: "comments"
-        }
-      },
-      {
-        $addFields: {
-          commentCount: { $size: "$comments" }
-        }
-      },
-      {
-        $project: {
-          title: 1,
-          content: 1,
-          authorName: 1,
-          createdAt: 1,
-          likeCount: 1,
-          likes: 1,
-          theme: 1,
-          mood: 1,
-          tags: 1,
-          slug: 1,
-          commentCount: 1,
-          saved: 1
-        }
-      },
-      { $sort: sortOption },
-      { $skip: skip },
-      { $limit: limit }
-    ]);
-
-    const totalJournals = await Journal.countDocuments(matchQuery);
-    const hasMore = skip + journals.length < totalJournals;
-
-    res.json({
-      journals,
-      hasMore,
-      page,
-      limit,
-      total: totalJournals,
-    });
-  } catch (error) {
-    console.error("Error fetching public journals:", error);
-    res.status(500).json({
-      message: "Error fetching public journals",
-      error: error.message,
-    });
-  }
-});
-
-router.get("/journals/journalscount", async (req, res) => {
-  try {
-    const count = await Journal.countDocuments();
-    res.status(200).json({ count });
-  } catch (error) {
-    console.error("Error fetching journal count:", error);
-    res.status(500).json({ message: "Server Error", error: error.message });
-  }
-});
-
-// Add this route to get comment count for journals
-router.get("/journals/with-comments", async (req, res) => {
-  try {
-    const page = Number.parseInt(req.query.page) || 1
-    const limit = Number.parseInt(req.query.limit) || 10
-    const sort = req.query.sort || "-createdAt"
-    const skip = (page - 1) * limit
-
-    if (page < 1 || limit < 1 || limit > 100) {
-      return res.status(400).json({ message: "Invalid page or limit value" })
-    }
-
-    let sortOption
-    switch (sort) {
-      case "likeCount":
-        sortOption = { likeCount: -1, createdAt: -1 }
-        break
-      case "createdAt":
-        sortOption = { createdAt: 1 }
-        break
-      case "-createdAt":
-        sortOption = { createdAt: -1 }
-        break
       case "commentCount":
-        sortOption = { commentCount: -1, createdAt: -1 }
-        break
+        sortOption = { commentCount: -1, createdAt: -1 };
+        break;
       case "-commentCount":
-        sortOption = { commentCount: -1, createdAt: -1 }
-        break
+        sortOption = { commentCount: -1, createdAt: -1 };
+        break;
       default:
         // Default to commentCount descending if invalid
-        sortOption = { commentCount: -1, createdAt: -1 }
-        break
+        sortOption = { commentCount: -1, createdAt: -1 };
+        break;
     }
 
     // Aggregate to get journals with comment counts
@@ -166,16 +81,16 @@ router.get("/journals/with-comments", async (req, res) => {
           tags: 1,
           slug: 1,
           commentCount: 1,
-          saved: 1
+          saved: 1,
         },
       },
       { $sort: sortOption },
       { $skip: skip },
       { $limit: limit },
-    ])
+    ]);
 
-    const totalJournals = await Journal.countDocuments({ isPublic: true })
-    const hasMore = skip + journals.length < totalJournals
+    const totalJournals = await Journal.countDocuments({ isPublic: true });
+    const hasMore = skip + journals.length < totalJournals;
 
     res.json({
       journals,
@@ -183,15 +98,15 @@ router.get("/journals/with-comments", async (req, res) => {
       page,
       limit,
       total: totalJournals,
-    })
+    });
   } catch (error) {
-    console.error("Error fetching journals with comments:", error)
+    console.error("Error fetching journals with comments:", error);
     res.status(500).json({
       message: "Error fetching journals",
       error: error.message,
-    })
+    });
   }
-})
+});
 
 // Get top 5 liked posts for each mood category
 router.get("/journals/top-by-mood", async (req, res) => {
@@ -200,7 +115,7 @@ router.get("/journals/top-by-mood", async (req, res) => {
     const moods = await Journal.distinct("mood", { isPublic: true });
 
     const facetPipelines = {};
-    moods.forEach(mood => {
+    moods.forEach((mood) => {
       facetPipelines[mood] = [
         { $match: { isPublic: true, mood: mood } },
         { $sort: { likeCount: -1, createdAt: -1 } },
@@ -211,9 +126,9 @@ router.get("/journals/top-by-mood", async (req, res) => {
             slug: 1,
             authorName: 1,
             likeCount: 1,
-            content: 1
-          }
-        }
+            content: 1,
+          },
+        },
       ];
     });
 
@@ -221,7 +136,10 @@ router.get("/journals/top-by-mood", async (req, res) => {
     res.json(results[0]);
   } catch (error) {
     console.error("Error fetching top journals by mood:", error);
-    res.status(500).json({ message: "Error fetching top journals by mood", error: error.message });
+    res.status(500).json({
+      message: "Error fetching top journals by mood",
+      error: error.message,
+    });
   }
 });
 
@@ -374,7 +292,7 @@ router.get("/journals/recommendations/:slug", async (req, res) => {
       .lean();
     // Remove duplicates by _id
     const seen = new Set();
-    tagRecs = tagRecs.filter(j => {
+    tagRecs = tagRecs.filter((j) => {
       if (seen.has(j._id.toString())) return false;
       seen.add(j._id.toString());
       return true;
@@ -382,12 +300,13 @@ router.get("/journals/recommendations/:slug", async (req, res) => {
 
     // If less than 10, fill with mood-based recommendations
     let moodRecs = [];
-    if (tagRecs.length < 10) { // Changed from 5 to 10
+    if (tagRecs.length < 10) {
+      // Changed from 5 to 10
       moodRecs = await Journal.find(moodMatch)
         .sort({ createdAt: -1 })
         .limit(20) // Changed from 10 to 20
         .lean();
-      moodRecs = moodRecs.filter(j => !seen.has(j._id.toString()));
+      moodRecs = moodRecs.filter((j) => !seen.has(j._id.toString()));
     }
 
     // Combine and limit to 10
@@ -396,7 +315,10 @@ router.get("/journals/recommendations/:slug", async (req, res) => {
     res.json({ recommendations });
   } catch (error) {
     console.error("Error fetching recommendations:", error);
-    res.status(500).json({ message: "Error fetching recommendations", error: error.message });
+    res.status(500).json({
+      message: "Error fetching recommendations",
+      error: error.message,
+    });
   }
 });
 
@@ -429,9 +351,9 @@ router.get("/journals/by-tag/:tag", async (req, res) => {
     }
 
     const decodedTag = decodeURIComponent(tag);
-    const matchQuery = { 
-      isPublic: true, 
-      tags: { $in: [new RegExp(`^${decodedTag}$`, 'i')] } 
+    const matchQuery = {
+      isPublic: true,
+      tags: { $in: [new RegExp(`^${decodedTag}$`, "i")] },
     };
 
     // Get journals with comment counts
@@ -442,13 +364,13 @@ router.get("/journals/by-tag/:tag", async (req, res) => {
           from: "comments",
           localField: "_id",
           foreignField: "journalId",
-          as: "comments"
-        }
+          as: "comments",
+        },
       },
       {
         $addFields: {
-          commentCount: { $size: "$comments" }
-        }
+          commentCount: { $size: "$comments" },
+        },
       },
       {
         $project: {
@@ -463,12 +385,12 @@ router.get("/journals/by-tag/:tag", async (req, res) => {
           tags: 1,
           slug: 1,
           commentCount: 1,
-          saved: 1
-        }
+          saved: 1,
+        },
       },
       { $sort: sortOption },
       { $skip: skip },
-      { $limit: limit }
+      { $limit: limit },
     ]);
 
     const totalJournals = await Journal.countDocuments(matchQuery);
@@ -480,7 +402,7 @@ router.get("/journals/by-tag/:tag", async (req, res) => {
       page,
       limit,
       total: totalJournals,
-      tag: decodedTag
+      tag: decodedTag,
     });
   } catch (error) {
     console.error("Error fetching journals by tag:", error);
@@ -877,14 +799,14 @@ router.post("/journals/:id/like", async (req, res) => {
         const liker = await User.findById(userId);
         const journalAuthor = await User.findById(journal.userId);
         if (liker && journalAuthor) {
-          const senderName = liker.anonymousName || liker.nickname || 'Someone';
+          const senderName = liker.anonymousName || liker.nickname || "Someone";
           const journalUrl = `https://starlitjournals.vercel.app/public-journal/${journal.slug}`;
           await Mail.create({
             sender: senderName,
             title: `New Like on your post \"${journal.title}\"`,
-            content: `<div style=\"font-size:16px;margin-bottom:8px;\"><b>${senderName}</b> liked your post <b>\"${journal.title}\"</b>.</div><a href=\"${journalUrl}\" style=\"display:inline-block;padding:8px 16px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;\">View Journal</a>` ,
+            content: `<div style=\"font-size:16px;margin-bottom:8px;\"><b>${senderName}</b> liked your post <b>\"${journal.title}\"</b>.</div><a href=\"${journalUrl}\" style=\"display:inline-block;padding:8px 16px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;\">View Journal</a>`,
             recipients: [{ userId: journal.userId, read: false }],
-            mailType: 'other',
+            mailType: "other",
             isSystemMail: true,
             sendToAllUsers: false,
           });
@@ -908,7 +830,7 @@ router.get("/popular-topics", async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
     const postsPerTag = parseInt(req.query.postsPerTag) || 3;
-    
+
     // First, get the most popular tags
     const popularTags = await Journal.aggregate([
       { $match: { isPublic: true, tags: { $exists: true, $ne: [] } } },
@@ -918,38 +840,38 @@ router.get("/popular-topics", async (req, res) => {
           _id: { $toUpper: "$tags" },
           totalLikes: { $sum: "$likeCount" },
           journalCount: { $sum: 1 },
-          avgLikes: { $avg: "$likeCount" }
-        }
+          avgLikes: { $avg: "$likeCount" },
+        },
       },
       { $sort: { totalLikes: -1, journalCount: -1 } },
-      { $limit: limit }
+      { $limit: limit },
     ]);
 
     // For each popular tag, get the most liked journals
     const popularTopicsWithPosts = await Promise.all(
       popularTags.map(async (tagData) => {
         const tagName = tagData._id;
-        
+
         // Get the most liked journals for this tag
         const topPosts = await Journal.aggregate([
-          { 
-            $match: { 
-              isPublic: true, 
-              tags: { $in: [new RegExp(`^${tagName}$`, 'i')] } 
-            } 
+          {
+            $match: {
+              isPublic: true,
+              tags: { $in: [new RegExp(`^${tagName}$`, "i")] },
+            },
           },
           {
             $lookup: {
               from: "comments",
               localField: "_id",
               foreignField: "journalId",
-              as: "comments"
-            }
+              as: "comments",
+            },
           },
           {
             $addFields: {
-              commentCount: { $size: "$comments" }
-            }
+              commentCount: { $size: "$comments" },
+            },
           },
           {
             $project: {
@@ -965,11 +887,11 @@ router.get("/popular-topics", async (req, res) => {
               tags: 1,
               slug: 1,
               commentCount: 1,
-              saved: 1
-            }
+              saved: 1,
+            },
           },
           { $sort: { likeCount: -1, createdAt: -1 } },
-          { $limit: postsPerTag }
+          { $limit: postsPerTag },
         ]);
 
         return {
@@ -977,7 +899,7 @@ router.get("/popular-topics", async (req, res) => {
           totalLikes: tagData.totalLikes,
           journalCount: tagData.journalCount,
           avgLikes: Math.round(tagData.avgLikes * 10) / 10,
-          topPosts: topPosts
+          topPosts: topPosts,
         };
       })
     );
@@ -985,7 +907,9 @@ router.get("/popular-topics", async (req, res) => {
     res.json({ popularTopics: popularTopicsWithPosts });
   } catch (error) {
     console.error("Error fetching popular topics:", error);
-    res.status(500).json({ message: "Error fetching popular topics", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching popular topics", error: error.message });
   }
 });
 
@@ -993,7 +917,7 @@ router.get("/popular-topics", async (req, res) => {
 router.get("/popular-writers", async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
-    
+
     // Aggregate to get writers with their total likes and journal counts
     const popularWriters = await Journal.aggregate([
       { $match: { isPublic: true } },
@@ -1003,8 +927,8 @@ router.get("/popular-writers", async (req, res) => {
           totalLikes: { $sum: "$likeCount" },
           journalCount: { $sum: 1 },
           avgLikes: { $avg: "$likeCount" },
-          authorName: { $first: "$authorName" }
-        }
+          authorName: { $first: "$authorName" },
+        },
       },
       { $sort: { totalLikes: -1, journalCount: -1 } },
       { $limit: limit },
@@ -1013,26 +937,29 @@ router.get("/popular-writers", async (req, res) => {
           from: "users",
           localField: "_id",
           foreignField: "_id",
-          as: "user"
-        }
+          as: "user",
+        },
       },
       {
         $project: {
-          userId: '$_id',
+          userId: "$_id",
           authorName: 1,
           totalLikes: 1,
           avgLikes: { $round: ["$avgLikes", 1] },
           anonymousName: { $arrayElemAt: ["$user.anonymousName", 0] },
           bio: { $arrayElemAt: ["$user.bio", 0] },
           profileTheme: { $arrayElemAt: ["$user.profileTheme", 0] },
-        }
-      }
+        },
+      },
     ]);
 
     res.json({ popularWriters });
   } catch (error) {
     console.error("Error fetching popular writers:", error);
-    res.status(500).json({ message: "Error fetching popular writers", error: error.message });
+    res.status(500).json({
+      message: "Error fetching popular writers",
+      error: error.message,
+    });
   }
 });
 
@@ -1040,28 +967,46 @@ router.get("/popular-writers", async (req, res) => {
 router.get("/trending-journals", async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 5;
-    
+
     // Get journals from the last 7 days with high engagement
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
+
     const trendingJournals = await Journal.aggregate([
-      { 
-        $match: { 
-          isPublic: true, 
+      {
+        $match: {
+          isPublic: true,
           createdAt: { $gte: sevenDaysAgo },
-          likeCount: { $gt: 0 }
-        } 
+          likeCount: { $gt: 0 },
+        },
       },
       {
         $addFields: {
+          daysSinceCreated: {
+            $divide: [
+              { $subtract: [new Date(), "$createdAt"] },
+              1000 * 60 * 60 * 24, // convert ms to days
+            ],
+          },
           engagementScore: {
             $add: [
               "$likeCount",
-              { $multiply: ["$likeCount", 0.1] } // Bonus for recent activity
-            ]
-          }
-        }
+              {
+                $multiply: [
+                  {
+                    $subtract: [
+                      7,
+                      {
+                        $min: ["$daysSinceCreated", 7], // cap max boost at 7 days
+                      },
+                    ],
+                  },
+                  2, // you can tune this multiplier
+                ],
+              },
+            ],
+          },
+        },
       },
       { $sort: { engagementScore: -1, createdAt: -1 } },
       { $limit: limit },
@@ -1075,15 +1020,18 @@ router.get("/trending-journals", async (req, res) => {
           slug: 1,
           tags: 1,
           mood: 1,
-          content: 1
-        }
-      }
+          content: 1,
+        },
+      },
     ]);
 
     res.json({ trendingJournals });
   } catch (error) {
     console.error("Error fetching trending journals:", error);
-    res.status(500).json({ message: "Error fetching trending journals", error: error.message });
+    res.status(500).json({
+      message: "Error fetching trending journals",
+      error: error.message,
+    });
   }
 });
 
@@ -1094,10 +1042,11 @@ router.get("/journalscount", async (req, res) => {
     res.json({ count });
   } catch (error) {
     console.error("Error counting journals:", error);
-    res.status(500).json({ message: "Error counting journals", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error counting journals", error: error.message });
   }
 });
-
 
 // Route to get public journals for a user's dashboard
 router.get("/journals/dashboard/public/:userId", async (req, res) => {
@@ -1115,9 +1064,14 @@ router.get("/journals/dashboard/public/:userId", async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .select("title content createdAt mood theme slug date collections tags authorName");
+      .select(
+        "title content createdAt mood theme slug date collections tags authorName"
+      );
 
-    const totalJournals = await Journal.countDocuments({ userId, isPublic: true });
+    const totalJournals = await Journal.countDocuments({
+      userId,
+      isPublic: true,
+    });
     const hasMore = skip + journals.length < totalJournals;
 
     res.json({ journals, hasMore, page, total: totalJournals });
@@ -1143,9 +1097,14 @@ router.get("/journals/dashboard/private/:userId", async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .select("title content createdAt mood theme slug date collections tags authorName");
+      .select(
+        "title content createdAt mood theme slug date collections tags authorName"
+      );
 
-    const totalJournals = await Journal.countDocuments({ userId, isPublic: false });
+    const totalJournals = await Journal.countDocuments({
+      userId,
+      isPublic: false,
+    });
     const hasMore = skip + journals.length < totalJournals;
 
     res.json({ journals, hasMore, page, total: totalJournals });
