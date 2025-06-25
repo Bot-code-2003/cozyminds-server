@@ -190,41 +190,53 @@ router.post("/login", async (req, res) => {
     if (streakMilestone) {
       const [days, { key, reward, special }] = streakMilestone;
       const template = getRandomTemplate(mailTemplates.streakMilestone[key]);
-      addMail({
-        sender: template.sender,
-        title: template.title,
-        content: template.content,
-        recipients: [{ userId: user._id, read: false, rewardClaimed: template.rewardAmount ? false : undefined }],
-        mailType: "reward",
-        rewardAmount: template.rewardAmount,
-        metadata: { milestone: parseInt(days), specialReward: special },
-        date: new Date(),
-        themeId: user.activeMailTheme,
-      });
-      user.completedStreakMilestones.push(parseInt(days));
+      if (template) {
+        const mail = {
+          sender: template.sender,
+          title: template.title,
+          content: template.content,
+          recipients: [{ userId: user._id, read: false }],
+          mailType: "reward",
+          rewardAmount: template.rewardAmount,
+          metadata: { milestone: parseInt(days), specialReward: special },
+          date: new Date(),
+          themeId: user.activeMailTheme,
+        };
+        if (template.rewardAmount) {
+          mail.recipients[0].rewardClaimed = false;
+        }
+        addMail(mail);
+        user.completedStreakMilestones.push(parseInt(days));
+      }
     }
 
     // 2. Entry Milestone Email
     const entryCount = await Journal.countDocuments({ userId: user._id });
     const entryMilestone = Object.entries(EMAIL_CONFIG.ENTRY_MILESTONES).find(
-      ([count]) => parseInt(count) === entryCount &&
+      ([count]) => parseInt(count) <= entryCount &&
         !user.completedEntryMilestones.includes(parseInt(count))
     );
     if (entryMilestone) {
       const [count, { key, reward, special }] = entryMilestone;
       const template = getRandomTemplate(mailTemplates.entryMilestone[key]);
-      addMail({
-        sender: template.sender,
-        title: template.title,
-        content: template.content,
-        recipients: [{ userId: user._id, read: false, rewardClaimed: template.rewardAmount ? false : undefined }],
-        mailType: "reward",
-        rewardAmount: template.rewardAmount,
-        metadata: { milestone: parseInt(count), specialReward: special },
-        date: new Date(),
-        themeId: user.activeMailTheme,
-      });
-      user.completedEntryMilestones.push(parseInt(count));
+      if (template) {
+        const mail = {
+          sender: template.sender,
+          title: template.title,
+          content: template.content,
+          recipients: [{ userId: user._id, read: false }],
+          mailType: "reward",
+          rewardAmount: template.rewardAmount,
+          metadata: { milestone: parseInt(count), specialReward: special },
+          date: new Date(),
+          themeId: user.activeMailTheme,
+        };
+        if (template.rewardAmount) {
+          mail.recipients[0].rewardClaimed = false;
+        }
+        addMail(mail);
+        user.completedEntryMilestones.push(parseInt(count));
+      }
     }
 
     // 3. Mood-Based Email
@@ -246,25 +258,33 @@ router.post("/login", async (req, res) => {
           (max, [mood, count]) => count > max.count ? { mood, count } : max,
           { mood: null, count: 0 }
         ).mood;
-        let moodCategory = "mixed";
-        if (["Sad", "Anxious", "Angry"].includes(dominantMood)) {
-          moodCategory = "sad";
-        } else if (["Happy", "Excited", "Grateful"].includes(dominantMood)) {
-          moodCategory = "happy";
+        if (dominantMood) {
+            let moodCategory = "mixed";
+            if (["Sad", "Anxious", "Angry"].includes(dominantMood)) {
+               moodCategory = "negative";
+            } else if (["Happy", "Grateful", "Excited"].includes(dominantMood)) {
+               moodCategory = "positive";
+            }
+            
+            const template = getRandomTemplate(mailTemplates.moods[moodCategory]);
+            if (template) {
+                const mail = {
+                    sender: template.sender,
+                    title: template.title,
+                    content: template.content,
+                    recipients: [{ userId: user._id, read: false }],
+                    mailType: 'mood',
+                    rewardAmount: template.rewardAmount,
+                    metadata: { mood: dominantMood },
+                    date: new Date(),
+                    themeId: user.activeMailTheme
+                };
+                if (template.rewardAmount) {
+                    mail.recipients[0].rewardClaimed = false;
+                }
+                addMail(mail);
+            }
         }
-
-        const moodTemplate = getRandomTemplate(mailTemplates.moodBased[moodCategory]);
-        addMail({
-          sender: moodTemplate.sender,
-          title: moodTemplate.title,
-          content: moodTemplate.content,
-          recipients: [{ userId: user._id, read: false }],
-          mailType: "reward",
-          rewardAmount: moodTemplate.rewardAmount,
-          metadata: { milestone: 0, specialReward: null },
-          date: new Date(),
-          themeId: user.activeMailTheme,
-        });
       }
     }
 
@@ -341,42 +361,37 @@ router.post("/login", async (req, res) => {
       }
     }
 
-    // 5. Story Delivery Email
-    const today = new Date().toDateString();
-    const { storyName: userStoryName, currentChapter: userCurrentChapter, lastSent: userLastSent, isComplete } = user.storyProgress || {};
-    const lastSentDateString = userLastSent ? new Date(userLastSent).toDateString() : null;
-    if (lastSentDateString !== today && userStoryName && !isComplete) {
-      const story = storyData.stories?.find((s) => s["Story Name"] === userStoryName);
-      if (story && userCurrentChapter <= story.number_of_chapters) {
-        const chapterData = story.chapters?.[userCurrentChapter - 1];
-        if (chapterData) {
-          addMail({
-            sender: story.characterSender || "Starlit Journals Team",
-            title: `Chapter ${userCurrentChapter}: ${chapterData.title} 📖`,
-            content: `<div style="background-image: url('/andy_the_sailor.png'); background-size: cover; background-position: center; opacity: 0.7; padding: 20px; border-radius: 8px; min-height: 200px; display: flex; align-items: center; justify-content: center;">
-              <div style="background: rgba(255, 255, 255, 0.9); padding: 15px; border-radius: 6px; max-width: 80%;">
-                <h3 style="margin: 0 0 10px 0; color: #333; font-size: 18px;">Chapter ${userCurrentChapter}: ${chapterData.title}</h3>
-                <p style="margin: 0; color: #555; line-height: 1.6; white-space: pre-line;">${chapterData.content}</p>
-              </div>
-            </div>`,
-            recipients: [{ userId: user._id, read: false }],
-            mailType: "reward",
-            rewardAmount: story.rewardAmount,
-            metadata: { chapter: userCurrentChapter },
-            date: new Date(),
-            themeId: user.activeMailTheme,
-          });
-          
-          // Check if this is the final chapter
-          const isFinalChapter = userCurrentChapter >= story.number_of_chapters;
-          
-          user.storyProgress = {
-            storyName: userStoryName,
-            currentChapter: userCurrentChapter + 1,
-            lastSent: new Date(),
-            isComplete: isFinalChapter,
-          };
+    // 5. Story Progression Email
+    const { storyName, currentChapter, lastSent } = user.storyProgress;
+    if (storyName && storyData[storyName]) {
+      const story = storyData[storyName];
+      const nextChapterIndex = currentChapter ? story.chapters.findIndex(c => c.id === currentChapter) + 1 : 0;
+      if (nextChapterIndex < story.chapters.length) {
+        const nextChapter = story.chapters[nextChapterIndex];
+        if (!lastSent || new Date(lastSent) <= new Date(now - 24 * 60 * 60 * 1000)) {
+          const template = getRandomTemplate(mailTemplates.story[nextChapter.templateKey]);
+          if (template) {
+            const mail = {
+              sender: template.sender,
+              title: template.title,
+              content: template.content,
+              recipients: [{ userId: user._id, read: false }],
+              mailType: 'story',
+              rewardAmount: template.rewardAmount,
+              metadata: { story: storyName, chapter: nextChapter.id },
+              date: new Date(),
+              themeId: user.activeMailTheme
+            };
+            if (template.rewardAmount) {
+              mail.recipients[0].rewardClaimed = false;
+            }
+            addMail(mail);
+            user.storyProgress.currentChapter = nextChapter.id;
+            user.storyProgress.lastSent = now;
+          }
         }
+      } else {
+        user.storyProgress.isComplete = true;
       }
     }
 
