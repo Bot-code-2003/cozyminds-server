@@ -398,6 +398,22 @@ router.post("/login", async (req, res) => {
   }
 });
 
+// Add helper to pick deterministic avatar style
+const avatarStyles = [
+  'avataaars', 'bottts', 'funEmoji', 'miniavs', 'croodles', 'micah', 'pixelArt',
+  'adventurer', 'bigEars', 'bigSmile', 'lorelei', 'openPeeps', 'personas',
+  'rings', 'shapes', 'thumbs'
+];
+function getDeterministicAvatarStyle(seed) {
+  if (!seed) return avatarStyles[0];
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash << 5) - hash + seed.charCodeAt(i);
+    hash |= 0;
+  }
+  return avatarStyles[Math.abs(hash) % avatarStyles.length];
+}
+
 // Signup Route
 router.post("/signup", async (req, res) => {
   try {
@@ -406,6 +422,7 @@ router.post("/signup", async (req, res) => {
     if (existingUser) return res.status(400).json({ message: "User already exists." });
 
     const anonymousName = generateAnonymousName(nickname);
+    const avatarStyle = getDeterministicAvatarStyle(anonymousName);
 
     const user = new User({
       nickname,
@@ -418,6 +435,7 @@ router.post("/signup", async (req, res) => {
       coins: 50,
       anonymousName: anonymousName,
       lastVisited: new Date(),
+      profileTheme: { avatarStyle },
     });
     await user.save();
 
@@ -571,6 +589,7 @@ router.put("/user/:id", async (req, res) => {
       bio,
       anonymousName,
       storyProgress,
+      profileTheme,
     } = req.body;
 
     // console.log(req.body);
@@ -607,6 +626,7 @@ router.put("/user/:id", async (req, res) => {
     if (bio !== undefined) updateData.bio = bio;
     if (anonymousName !== undefined) updateData.anonymousName = anonymousName;
     if (storyProgress) updateData.storyProgress = storyProgress;
+    if (profileTheme !== undefined) updateData.profileTheme = profileTheme;
 
     // Find and update the user
     const updatedUser = await User.findByIdAndUpdate(id, updateData, {

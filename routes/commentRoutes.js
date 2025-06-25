@@ -50,7 +50,7 @@ router.get("/comments/:journalId", async (req, res) => {
 // Create a new comment
 router.post("/comments", async (req, res) => {
   try {
-    const { journalId, userId, content, parentId, authorName } = req.body
+    const { journalId, userId, content, parentId, authorName, profileTheme } = req.body
 
     if (!journalId || !userId || !content || !authorName) {
       return res.status(400).json({ message: "Missing required fields" })
@@ -90,6 +90,7 @@ router.post("/comments", async (req, res) => {
       content: content.trim(),
       authorName,
       parentId: parentId || null,
+      profileTheme: profileTheme || (user.profileTheme || null),
     })
 
     await comment.save()

@@ -42,6 +42,10 @@ const commentSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    profileTheme: {
+      type: Object,
+      default: null,
+    },
   },
   {
     timestamps: true,

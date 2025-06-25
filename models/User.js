@@ -116,9 +116,10 @@ const userSchema = new mongoose.Schema(
       maxlength: 500,
       default: "",
     },
+    // Profile card customization as a single object
     profileTheme: {
-      type: String,
-      default: "default",
+      type: Object,
+      default: { type: "color", value: "#b6e3f4" },
     },
     // Notification tracking
     lastNotificationCheck: {

@@ -1019,12 +1019,13 @@ router.get("/popular-writers", async (req, res) => {
       },
       {
         $project: {
-          userId: "$__id",
+          userId: '$_id',
           authorName: 1,
           totalLikes: 1,
           avgLikes: { $round: ["$avgLikes", 1] },
           anonymousName: { $arrayElemAt: ["$user.anonymousName", 0] },
           bio: { $arrayElemAt: ["$user.bio", 0] },
+          profileTheme: { $arrayElemAt: ["$user.profileTheme", 0] },
         }
       }
     ]);
