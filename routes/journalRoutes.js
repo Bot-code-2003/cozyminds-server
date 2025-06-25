@@ -37,7 +37,6 @@ router.get("/journals/public", async (req, res) => {
 
     const matchQuery = { isPublic: true };
 
-    // Get journals with comment counts
     const journals = await Journal.aggregate([
       { $match: matchQuery },
       {
@@ -1099,4 +1098,60 @@ router.get("/journalscount", async (req, res) => {
   }
 });
 
+
+// Route to get public journals for a user's dashboard
+router.get("/journals/dashboard/public/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid user ID" });
+    }
+
+    const journals = await Journal.find({ userId, isPublic: true })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .select("title content createdAt mood theme slug date collections tags authorName");
+
+    const totalJournals = await Journal.countDocuments({ userId, isPublic: true });
+    const hasMore = skip + journals.length < totalJournals;
+
+    res.json({ journals, hasMore, page, total: totalJournals });
+  } catch (error) {
+    console.error("Error fetching public dashboard journals:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// Route to get private journals for a user's dashboard
+router.get("/journals/dashboard/private/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid user ID" });
+    }
+
+    const journals = await Journal.find({ userId, isPublic: false })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .select("title content createdAt mood theme slug date collections tags authorName");
+
+    const totalJournals = await Journal.countDocuments({ userId, isPublic: false });
+    const hasMore = skip + journals.length < totalJournals;
+
+    res.json({ journals, hasMore, page, total: totalJournals });
+  } catch (error) {
+    console.error("Error fetching private dashboard journals:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
 export default router;

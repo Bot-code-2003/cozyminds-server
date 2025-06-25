@@ -10,6 +10,7 @@ const router = express.Router();
 router.get("/profile/:anonymousName", async (req, res) => {
   try {
     const { anonymousName } = req.params;
+    const { withJournals } = req.query;
 
     console.log(anonymousName);
     
@@ -24,21 +25,26 @@ router.get("/profile/:anonymousName", async (req, res) => {
       return res.status(404).json({ message: "Profile not found" });
     }
 
-    // Get public journals by this user
-    const journals = await Journal.find({ 
-      userId: user._id, 
-      isPublic: true 
-    })
-      .sort({ date: -1 })
-      .limit(20)
-      .select("title content authorName date likeCount likes theme mood tags slug")
-      .lean();
+    let journals = [];
+    let totalJournals = 0;
 
-    // Get total public journal count
-    const totalJournals = await Journal.countDocuments({ 
-      userId: user._id, 
-      isPublic: true 
-    });
+    if (withJournals !== 'false') {
+      // Get public journals by this user
+      journals = await Journal.find({ 
+        userId: user._id, 
+        isPublic: true 
+      })
+        .sort({ date: -1 })
+        .limit(20)
+        .select("title content authorName date likeCount likes theme mood tags slug")
+        .lean();
+
+      // Get total public journal count
+      totalJournals = await Journal.countDocuments({ 
+        userId: user._id, 
+        isPublic: true 
+      });
+    }
 
     res.json({
       profile: user,
