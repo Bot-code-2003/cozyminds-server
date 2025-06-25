@@ -143,6 +143,94 @@ router.get("/journals/top-by-mood", async (req, res) => {
   }
 });
 
+// Get all public journals with pagination and sorting
+router.get("/journals/public", async (req, res) => {
+  try {
+    const page = Number.parseInt(req.query.page) || 1;
+    const limit = Number.parseInt(req.query.limit) || 20;
+    const sort = req.query.sort || "-createdAt";
+    const skip = (page - 1) * limit;
+
+    if (page < 1 || limit < 1 || limit > 100) {
+      return res.status(400).json({ message: "Invalid page or limit value" });
+    }
+
+    let sortOption;
+    switch (sort) {
+      case "likeCount":
+        sortOption = { likeCount: -1, createdAt: -1 };
+        break;
+      case "createdAt":
+        sortOption = { createdAt: 1 };
+        break;
+      case "-createdAt":
+        sortOption = { createdAt: -1 };
+        break;
+      case "commentCount":
+        sortOption = { commentCount: -1, createdAt: -1 };
+        break;
+      default:
+        sortOption = { createdAt: -1 };
+        break;
+    }
+
+    const matchQuery = { isPublic: true };
+
+    const journals = await Journal.aggregate([
+      { $match: matchQuery },
+      {
+        $lookup: {
+          from: "comments",
+          localField: "_id",
+          foreignField: "journalId",
+          as: "comments",
+        },
+      },
+      {
+        $addFields: {
+          commentCount: { $size: "$comments" },
+        },
+      },
+      {
+        $project: {
+          title: 1,
+          content: 1,
+          authorName: 1,
+          createdAt: 1,
+          likeCount: 1,
+          likes: 1,
+          theme: 1,
+          mood: 1,
+          tags: 1,
+          slug: 1,
+          commentCount: 1,
+          saved: 1,
+        },
+      },
+      { $sort: sortOption },
+      { $skip: skip },
+      { $limit: limit },
+    ]);
+
+    const totalJournals = await Journal.countDocuments(matchQuery);
+    const hasMore = skip + journals.length < totalJournals;
+
+    res.json({
+      journals,
+      hasMore,
+      page,
+      limit,
+      total: totalJournals,
+    });
+  } catch (error) {
+    console.error("Error fetching public journals:", error);
+    res.status(500).json({
+      message: "Error fetching public journals",
+      error: error.message,
+    });
+  }
+});
+
 // --- Dynamic Journal Routes (with /:params) ---
 
 // Get journals from followed users
@@ -982,28 +1070,10 @@ router.get("/trending-journals", async (req, res) => {
       },
       {
         $addFields: {
-          daysSinceCreated: {
-            $divide: [
-              { $subtract: [new Date(), "$createdAt"] },
-              1000 * 60 * 60 * 24, // convert ms to days
-            ],
-          },
           engagementScore: {
             $add: [
               "$likeCount",
-              {
-                $multiply: [
-                  {
-                    $subtract: [
-                      7,
-                      {
-                        $min: ["$daysSinceCreated", 7], // cap max boost at 7 days
-                      },
-                    ],
-                  },
-                  2, // you can tune this multiplier
-                ],
-              },
+              { $multiply: ["$likeCount", 0.1] }, // Bonus for recent activity
             ],
           },
         },
@@ -1028,10 +1098,12 @@ router.get("/trending-journals", async (req, res) => {
     res.json({ trendingJournals });
   } catch (error) {
     console.error("Error fetching trending journals:", error);
-    res.status(500).json({
-      message: "Error fetching trending journals",
-      error: error.message,
-    });
+    res
+      .status(500)
+      .json({
+        message: "Error fetching trending journals",
+        error: error.message,
+      });
   }
 });
 
