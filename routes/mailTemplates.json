@@ -91,6 +91,29 @@
       "content": "# Your Weekly Journal Summary\n\nHere's a look at your week in Starlit Journals:\n\n- **Total Entries:** {entryCount}\n- **Public Entries:** {publicCount}\n- **Private Entries:** {privateCount}\n- **Most Frequent Mood:** {mostFrequentMood}\n- **Preferred Writing Time:** {preferredTime}\n\n## 🏆 Milestones\n- **Current Streak:** {currentStreak} days\n- **Total Entries:** {totalEntries}\n\n## ✨ Writing Prompt\n> {randomPrompt}\n\nKeep up the great work! Every entry is a step on your journey.\n\n— The Starlit Journals Team"
     }
   ],
+  "moods": {
+    "positive": [
+      {
+        "sender": "Starlit Journals Team",
+        "title": "Keep the Positive Vibes Going!",
+        "content": "# It's Great to See You Shining!\n\nWe've noticed you've been feeling positive lately. That's wonderful! Keep embracing the good moments and expressing your joy.\n\n> Why not write about what's making you smile today?\n\nKeep up the amazing energy!\n\n— The Starlit Journals Team"
+      }
+    ],
+    "negative": [
+      {
+        "sender": "Starlit Journals Team",
+        "title": "A Gentle Check-In",
+        "content": "# Thinking of You\n\nWe've noticed you may have been going through a tough time recently. Remember that it's okay to not be okay. Your journal is a safe space to process these feelings.\n\n> Writing can be a powerful tool for navigating difficult emotions. Be kind to yourself.\n\nWe're here for you.\n\n— The Starlit Journals Team"
+      }
+    ],
+    "mixed": [
+      {
+        "sender": "Starlit Journals Team",
+        "title": "Embracing the Journey",
+        "content": "# Every Feeling is Valid\n\nLife is a mix of ups and downs, and your journal is here for all of it. We see you're navigating a range of emotions, and that's completely normal.\n\n> Take a moment to reflect on the different feelings you've experienced this week.\n\nKeep writing and reflecting.\n\n— The Starlit Journals Team"
+      }
+    ]
+  },
   "prompt": [
     { "sender": "Starlit Journals Team", "title": "Writing Prompt", "content": "# Writing Prompt\n\n> Write about a small moment that made you smile recently." },
     { "sender": "Starlit Journals Team", "title": "Writing Prompt", "content": "# Writing Prompt\n\n> Describe a place where you feel most at peace." },
