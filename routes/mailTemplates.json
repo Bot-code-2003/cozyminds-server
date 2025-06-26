@@ -96,6 +96,30 @@
     { "sender": "Starlit Journals Team", "title": "Writing Prompt", "content": "# Writing Prompt\n\n> Describe a place where you feel most at peace." },
     { "sender": "Starlit Journals Team", "title": "Writing Prompt", "content": "# Writing Prompt\n\n> What is something you're looking forward to?" }
   ],
+  "moods": {
+    "positive": [
+      {
+        "sender": "Starlit Journals Team",
+        "title": "Keep That Positive Energy!",
+        "content": "# Keep Shining Bright!\n\nWe've noticed a lot of positivity in your recent journals. That's amazing! Keep embracing the good vibes and celebrating your wins, big or small. :sparkles:",
+        "rewardAmount": 10
+      }
+    ],
+    "negative": [
+      {
+        "sender": "Starlit Journals Team",
+        "title": "It's Okay to Not Be Okay",
+        "content": "# A Gentle Reminder\n\nWe noticed you've been having some tough moments. Remember that every feeling is valid. Be kind to yourself, and know that you've got a safe space here to work through it. :heart:"
+      }
+    ],
+    "mixed": [
+      {
+        "sender": "Starlit Journals Team",
+        "title": "Embracing Your Journey",
+        "content": "# Embracing All Your Feelings\n\nYour recent entries show a mix of emotions, and that's completely normal. Life is a beautiful blend of ups and downs. Keep exploring your feelings—you're doing great."
+      }
+    ]
+  },
   "mailThemes": {
     "default": { "styles": {}, "contentPrefixes": [""], "contentSuffixes": [""] }
   }

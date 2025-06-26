@@ -151,12 +151,14 @@ router.post("/login", async (req, res) => {
     user.completedEntryMilestones = user.completedEntryMilestones ?? [];
     user.activeMailTheme = user.activeMailTheme ?? "default";
     user.lastVisited = user.lastVisited ?? new Date();
-    user.storyProgress = user.storyProgress ?? {
-      storyName: null,
-      currentChapter: null,
-      lastSent: null,
-      isComplete: false,
-    };
+    if (!user.storyProgress || typeof user.storyProgress !== 'object' || Array.isArray(user.storyProgress)) {
+      user.storyProgress = {
+        storyName: null,
+        currentChapter: null,
+        lastSent: null,
+        isComplete: false,
+      };
+    }
 
     const now = new Date();
     const lastVisited = new Date(user.lastVisited);
@@ -362,25 +364,33 @@ router.post("/login", async (req, res) => {
     }
 
     // 5. Story Progression Email
-    const { storyName, currentChapter, lastSent } = user.storyProgress;
+    const { storyName, currentChapter, lastSent, isComplete } =
+      user.storyProgress;
     if (storyName && storyData[storyName]) {
       const story = storyData[storyName];
-      const nextChapterIndex = currentChapter ? story.chapters.findIndex(c => c.id === currentChapter) + 1 : 0;
+      const nextChapterIndex = currentChapter
+        ? story.chapters.findIndex((c) => c.id === currentChapter) + 1
+        : 0;
       if (nextChapterIndex < story.chapters.length) {
         const nextChapter = story.chapters[nextChapterIndex];
-        if (!lastSent || new Date(lastSent) <= new Date(now - 24 * 60 * 60 * 1000)) {
-          const template = getRandomTemplate(mailTemplates.story[nextChapter.templateKey]);
+        if (
+          !lastSent ||
+          new Date(lastSent) <= new Date(now - 24 * 60 * 60 * 1000)
+        ) {
+          const template = getRandomTemplate(
+            mailTemplates.story[nextChapter.templateKey]
+          );
           if (template) {
             const mail = {
               sender: template.sender,
               title: template.title,
               content: template.content,
               recipients: [{ userId: user._id, read: false }],
-              mailType: 'story',
+              mailType: "story",
               rewardAmount: template.rewardAmount,
               metadata: { story: storyName, chapter: nextChapter.id },
               date: new Date(),
-              themeId: user.activeMailTheme
+              themeId: user.activeMailTheme,
             };
             if (template.rewardAmount) {
               mail.recipients[0].rewardClaimed = false;
@@ -391,7 +401,9 @@ router.post("/login", async (req, res) => {
           }
         }
       } else {
-        user.storyProgress.isComplete = true;
+        if (!isComplete) {
+          user.storyProgress.isComplete = true;
+        }
       }
     }
 
