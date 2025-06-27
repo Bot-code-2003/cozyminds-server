@@ -73,6 +73,7 @@ router.get("/journals/with-comments", async (req, res) => {
           title: 1,
           content: 1,
           authorName: 1,
+          userId: 1,
           createdAt: 1,
           likeCount: 1,
           likes: 1,
@@ -176,47 +177,35 @@ router.get("/journals/public", async (req, res) => {
 
     const matchQuery = { isPublic: true };
 
-    const journals = await Journal.aggregate([
-      { $match: matchQuery },
-      {
-        $lookup: {
-          from: "comments",
-          localField: "_id",
-          foreignField: "journalId",
-          as: "comments",
-        },
-      },
-      {
-        $addFields: {
-          commentCount: { $size: "$comments" },
-        },
-      },
-      {
-        $project: {
-          title: 1,
-          content: 1,
-          authorName: 1,
-          createdAt: 1,
-          likeCount: 1,
-          likes: 1,
-          theme: 1,
-          mood: 1,
-          tags: 1,
-          slug: 1,
-          commentCount: 1,
-          saved: 1,
-        },
-      },
-      { $sort: sortOption },
-      { $skip: skip },
-      { $limit: limit },
-    ]);
+    // Populate userId for author info
+    const journals = await Journal.find(matchQuery)
+      .populate('userId', 'anonymousName profileTheme')
+      .sort(sortOption)
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    // Add author object to each journal
+    const journalsWithAuthor = journals.map(journal => {
+      let author = null;
+      if (journal.userId) {
+        author = {
+          userId: journal.userId._id,
+          anonymousName: journal.userId.anonymousName,
+          profileTheme: journal.userId.profileTheme,
+        };
+      }
+      return {
+        ...journal,
+        author,
+      };
+    });
 
     const totalJournals = await Journal.countDocuments(matchQuery);
-    const hasMore = skip + journals.length < totalJournals;
+    const hasMore = skip + journalsWithAuthor.length < totalJournals;
 
     res.json({
-      journals,
+      journals: journalsWithAuthor,
       hasMore,
       page,
       limit,
@@ -332,16 +321,27 @@ router.get("/journals/singlepublic/:slug", async (req, res) => {
   try {
     const { slug } = req.params;
 
+    // Populate userId with anonymousName and profileTheme
     const journal = await Journal.findOne({ slug, isPublic: true }).populate({
       path: "userId",
-      select: "anonymousName",
+      select: "anonymousName profileTheme",
     });
 
     if (!journal) return res.status(404).json({ message: "Journal not found" });
 
+    // Defensive: If userId is missing (user deleted), return 404
+    if (!journal.userId) {
+      return res.status(404).json({ message: "Author not found" });
+    }
+
+    // Return all journal fields, and embed author info
     const transformedJournal = {
       ...journal.toObject(),
-      author: { anonymousName: journal.userId.anonymousName },
+      author: {
+        userId: journal.userId._id,
+        anonymousName: journal.userId.anonymousName,
+        profileTheme: journal.userId.profileTheme,
+      },
     };
 
     res.json(transformedJournal);
@@ -376,7 +376,7 @@ router.get("/journals/recommendations/:slug", async (req, res) => {
     // Get tag-based recommendations (limit 20)
     let tagRecs = await Journal.find(tagMatch)
       .sort({ createdAt: -1 })
-      .limit(20) // Changed from 10 to 20
+      .limit(20)
       .lean();
     // Remove duplicates by _id
     const seen = new Set();
@@ -386,19 +386,44 @@ router.get("/journals/recommendations/:slug", async (req, res) => {
       return true;
     });
 
-    // If less than 10, fill with mood-based recommendations
+    // If less than 8, fill with mood-based recommendations
     let moodRecs = [];
-    if (tagRecs.length < 10) {
-      // Changed from 5 to 10
+    if (tagRecs.length < 8) {
       moodRecs = await Journal.find(moodMatch)
         .sort({ createdAt: -1 })
-        .limit(20) // Changed from 10 to 20
+        .limit(20)
         .lean();
       moodRecs = moodRecs.filter((j) => !seen.has(j._id.toString()));
     }
 
-    // Combine and limit to 10
-    const recommendations = [...tagRecs, ...moodRecs].slice(0, 10); // Changed from 5 to 10
+    // Combine tag and mood recommendations
+    let recommendations = [...tagRecs, ...moodRecs];
+
+    // If still less than 8, fill with random journals
+    if (recommendations.length < 8) {
+      const randomMatch = {
+        isPublic: true,
+        slug: { $ne: slug },
+        _id: { $nin: recommendations.map(j => j._id) }
+      };
+      
+      const randomRecs = await Journal.find(randomMatch)
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .lean();
+      
+      // Add random recommendations until we reach 8 or run out
+      for (const randomRec of randomRecs) {
+        if (recommendations.length >= 8) break;
+        if (!seen.has(randomRec._id.toString())) {
+          recommendations.push(randomRec);
+          seen.add(randomRec._id.toString());
+        }
+      }
+    }
+
+    // Limit to 8
+    recommendations = recommendations.slice(0, 8);
 
     res.json({ recommendations });
   } catch (error) {
@@ -465,6 +490,7 @@ router.get("/journals/by-tag/:tag", async (req, res) => {
           title: 1,
           content: 1,
           authorName: 1,
+          userId: 1,
           createdAt: 1,
           likeCount: 1,
           likes: 1,
@@ -707,13 +733,18 @@ router.post("/saveJournal", async (req, res) => {
 
     const slug = await generateSlug(title, Journal);
 
+    // Strip leading '#' from tags if present
+    const cleanedTags = Array.isArray(tags)
+      ? tags.map(tag => typeof tag === 'string' && tag.startsWith('#') ? tag.slice(1) : tag)
+      : tags;
+
     const journal = new Journal({
       userId,
       title,
       slug,
       content,
       mood,
-      tags,
+      tags: cleanedTags,
       collections,
       theme,
       isPublic,

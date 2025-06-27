@@ -57,6 +57,56 @@ router.get("/profile/:anonymousName", async (req, res) => {
   }
 });
 
+// Get public profile by userId
+router.get("/profile/id/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { withJournals } = req.query;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid user ID format" });
+    }
+
+    const user = await User.findById(userId)
+      .select("anonymousName currentStreak longestStreak subscriberCount bio profileTheme createdAt")
+      .lean();
+
+    if (!user) {
+      return res.status(404).json({ message: "Profile not found" });
+    }
+
+    let journals = [];
+    let totalJournals = 0;
+
+    if (withJournals !== 'false') {
+      // Get public journals by this user
+      journals = await Journal.find({ 
+        userId: user._id, 
+        isPublic: true 
+      })
+        .sort({ date: -1 })
+        .limit(20)
+        .select("title content authorName date likeCount likes theme mood tags slug")
+        .lean();
+
+      // Get total public journal count
+      totalJournals = await Journal.countDocuments({ 
+        userId: user._id, 
+        isPublic: true 
+      });
+    }
+
+    res.json({
+      profile: user,
+      journals,
+      totalJournals
+    });
+  } catch (error) {
+    console.error("Error fetching public profile by userId:", error);
+    res.status(500).json({ message: "Error fetching profile", error: error.message });
+  }
+});
+
 // Subscribe to a user
 router.post("/subscribe", async (req, res) => {
   try {
