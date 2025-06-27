@@ -84,7 +84,7 @@ mongoose
       console.log("Server is running on port 3000");
     });
   })
-  .catch((error) => console.log("MongoDB connection error:", error));
+  // .catch((error) => console.log("MongoDB connection error:", error));
 
 // export const handler = serverless(app);
 

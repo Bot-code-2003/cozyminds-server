@@ -73,7 +73,6 @@ router.get("/journals/with-comments", async (req, res) => {
           title: 1,
           content: 1,
           authorName: 1,
-          userId: 1,
           createdAt: 1,
           likeCount: 1,
           likes: 1,
@@ -179,27 +178,32 @@ router.get("/journals/public", async (req, res) => {
 
     // Populate userId for author info
     const journals = await Journal.find(matchQuery)
-      .populate('userId', 'anonymousName profileTheme')
       .sort(sortOption)
       .skip(skip)
       .limit(limit)
+      .populate('userId', 'anonymousName profileTheme')
       .lean();
 
-    // Add author object to each journal
-    const journalsWithAuthor = journals.map(journal => {
-      let author = null;
-      if (journal.userId) {
-        author = {
-          userId: journal.userId._id,
-          anonymousName: journal.userId.anonymousName,
-          profileTheme: journal.userId.profileTheme,
-        };
-      }
-      return {
-        ...journal,
-        author,
-      };
-    });
+    // Get comment counts for all journals in parallel
+    const Comment = (await import('../models/comment.js')).default;
+    const journalIds = journals.map(j => j._id);
+    const commentCounts = await Comment.aggregate([
+      { $match: { journalId: { $in: journalIds } } },
+      { $group: { _id: "$journalId", count: { $sum: 1 } } }
+    ]);
+    const commentCountMap = {};
+    commentCounts.forEach(cc => { commentCountMap[cc._id.toString()] = cc.count; });
+
+    // Add author field and commentCount
+    const journalsWithAuthor = journals.map(journal => ({
+      ...journal,
+      author: journal.userId ? {
+        userId: journal.userId._id,
+        anonymousName: journal.userId.anonymousName,
+        profileTheme: journal.userId.profileTheme,
+      } : null,
+      commentCount: commentCountMap[journal._id.toString()] || 0,
+    }));
 
     const totalJournals = await Journal.countDocuments(matchQuery);
     const hasMore = skip + journalsWithAuthor.length < totalJournals;
@@ -239,19 +243,7 @@ router.get("/feed/:userId", async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    console.log(`User ${userId} subscribedTo:`, user.subscribedTo);
-
-    if (!user.subscribedTo.length) {
-      return res.json({
-        journals: [],
-        hasMore: false,
-        page,
-        limit,
-        total: 0,
-        message: "No subscriptions found",
-      });
-    }
-
+    // Populate userId for author info
     const journals = await Journal.find({
       userId: { $in: user.subscribedTo },
       isPublic: true,
@@ -259,25 +251,28 @@ router.get("/feed/:userId", async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .select(
-        "title content authorName createdAt likeCount likes theme mood tags slug isFromSubscription"
-      )
+      .populate('userId', 'anonymousName profileTheme')
       .lean();
 
-    console.log(`Found ${journals.length} journals for feed`);
-
-    journals.forEach((journal) => {
-      journal.isFromSubscription = true;
-    });
+    // Add author field
+    const journalsWithAuthor = journals.map(journal => ({
+      ...journal,
+      author: journal.userId ? {
+        userId: journal.userId._id,
+        anonymousName: journal.userId.anonymousName,
+        profileTheme: journal.userId.profileTheme,
+      } : null,
+      isFromSubscription: true,
+    }));
 
     const totalJournals = await Journal.countDocuments({
       userId: { $in: user.subscribedTo },
       isPublic: true,
     });
-    const hasMore = skip + journals.length < totalJournals;
+    const hasMore = skip + journalsWithAuthor.length < totalJournals;
 
     res.json({
-      journals,
+      journals: journalsWithAuthor,
       hasMore,
       page,
       limit,
@@ -321,27 +316,21 @@ router.get("/journals/singlepublic/:slug", async (req, res) => {
   try {
     const { slug } = req.params;
 
-    // Populate userId with anonymousName and profileTheme
     const journal = await Journal.findOne({ slug, isPublic: true }).populate({
       path: "userId",
-      select: "anonymousName profileTheme",
+      select: "anonymousName",
     });
 
     if (!journal) return res.status(404).json({ message: "Journal not found" });
 
-    // Defensive: If userId is missing (user deleted), return 404
-    if (!journal.userId) {
-      return res.status(404).json({ message: "Author not found" });
-    }
+    // Get comment count for this journal
+    const Comment = (await import('../models/comment.js')).default;
+    const commentCount = await Comment.countDocuments({ journalId: journal._id });
 
-    // Return all journal fields, and embed author info
     const transformedJournal = {
       ...journal.toObject(),
-      author: {
-        userId: journal.userId._id,
-        anonymousName: journal.userId.anonymousName,
-        profileTheme: journal.userId.profileTheme,
-      },
+      author: { anonymousName: journal.userId.anonymousName },
+      commentCount,
     };
 
     res.json(transformedJournal);
@@ -469,49 +458,29 @@ router.get("/journals/by-tag/:tag", async (req, res) => {
       tags: { $in: [new RegExp(`^${decodedTag}$`, "i")] },
     };
 
-    // Get journals with comment counts
-    const journals = await Journal.aggregate([
-      { $match: matchQuery },
-      {
-        $lookup: {
-          from: "comments",
-          localField: "_id",
-          foreignField: "journalId",
-          as: "comments",
-        },
-      },
-      {
-        $addFields: {
-          commentCount: { $size: "$comments" },
-        },
-      },
-      {
-        $project: {
-          title: 1,
-          content: 1,
-          authorName: 1,
-          userId: 1,
-          createdAt: 1,
-          likeCount: 1,
-          likes: 1,
-          theme: 1,
-          mood: 1,
-          tags: 1,
-          slug: 1,
-          commentCount: 1,
-          saved: 1,
-        },
-      },
-      { $sort: sortOption },
-      { $skip: skip },
-      { $limit: limit },
-    ]);
+    // Populate userId for author info
+    const journals = await Journal.find(matchQuery)
+      .sort(sortOption)
+      .skip(skip)
+      .limit(limit)
+      .populate('userId', 'anonymousName profileTheme')
+      .lean();
+
+    // Add author field
+    const journalsWithAuthor = journals.map(journal => ({
+      ...journal,
+      author: journal.userId ? {
+        userId: journal.userId._id,
+        anonymousName: journal.userId.anonymousName,
+        profileTheme: journal.userId.profileTheme,
+      } : null,
+    }));
 
     const totalJournals = await Journal.countDocuments(matchQuery);
-    const hasMore = skip + journals.length < totalJournals;
+    const hasMore = skip + journalsWithAuthor.length < totalJournals;
 
     res.json({
-      journals,
+      journals: journalsWithAuthor,
       hasMore,
       page,
       limit,
@@ -733,18 +702,13 @@ router.post("/saveJournal", async (req, res) => {
 
     const slug = await generateSlug(title, Journal);
 
-    // Strip leading '#' from tags if present
-    const cleanedTags = Array.isArray(tags)
-      ? tags.map(tag => typeof tag === 'string' && tag.startsWith('#') ? tag.slice(1) : tag)
-      : tags;
-
     const journal = new Journal({
       userId,
       title,
       slug,
       content,
       mood,
-      tags: cleanedTags,
+      tags,
       collections,
       theme,
       isPublic,
@@ -1096,15 +1060,45 @@ router.get("/trending-journals", async (req, res) => {
         $match: {
           isPublic: true,
           createdAt: { $gte: sevenDaysAgo },
-          likeCount: { $gt: 0 },
+        },
+      },
+      // Lookup comment count
+      {
+        $lookup: {
+          from: "comments",
+          localField: "_id",
+          foreignField: "journalId",
+          as: "comments",
+        },
+      },
+      {
+        $addFields: {
+          commentCount: { $size: "$comments" },
+          daysAgo: {
+            $divide: [
+              { $subtract: [new Date(), "$createdAt"] },
+              1000 * 60 * 60 * 24
+            ],
+          },
+        },
+      },
+      {
+        $addFields: {
+          baseScore: {
+            $add: [
+              { $ifNull: ["$likeCount", 0] },
+              { $multiply: [{ $ifNull: ["$commentCount", 0] }, 2] },
+            ],
+          },
         },
       },
       {
         $addFields: {
           engagementScore: {
-            $add: [
-              "$likeCount",
-              { $multiply: ["$likeCount", 0.1] }, // Bonus for recent activity
+            $cond: [
+              { $lte: ["$daysAgo", 7] },
+              { $multiply: ["$baseScore", { $subtract: [1, { $divide: ["$daysAgo", 7] }] }] },
+              0
             ],
           },
         },
@@ -1117,11 +1111,13 @@ router.get("/trending-journals", async (req, res) => {
           title: 1,
           authorName: 1,
           likeCount: 1,
+          commentCount: 1,
           createdAt: 1,
           slug: 1,
           tags: 1,
           mood: 1,
           content: 1,
+          engagementScore: 1,
         },
       },
     ]);

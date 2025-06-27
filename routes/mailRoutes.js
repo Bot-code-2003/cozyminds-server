@@ -303,7 +303,7 @@ const cleanupExpiredMails = async () => {
       expiryDate: { $lt: currentDate },
     });
 
-    console.log(`Cleaned up ${result.deletedCount} expired mails`);
+    // console.log(`Cleaned up ${result.deletedCount} expired mails`);
   } catch (error) {
     console.error("Error during mail cleanup:", error);
   }

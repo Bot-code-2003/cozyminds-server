@@ -12,14 +12,14 @@ router.get("/profile/:anonymousName", async (req, res) => {
     const { anonymousName } = req.params;
     const { withJournals } = req.query;
 
-    console.log(anonymousName);
+    // console.log(anonymousName);
     
     
     const user = await User.findOne({ anonymousName })
       .select("anonymousName currentStreak longestStreak subscriberCount bio profileTheme createdAt")
       .lean();
 
-    console.log(user);
+    // console.log(user);
 
     if (!user) {
       return res.status(404).json({ message: "Profile not found" });
@@ -290,7 +290,7 @@ router.get("/feed/:userId", async (req, res) => {
       .sort({ date: -1 })
       .skip(skip)
       .limit(limit)
-      .select("title content authorName date likeCount likes theme mood tags slug userId")
+      .populate('userId', 'anonymousName profileTheme')
       .lean();
 
     // Get all public journals if no subscriptions or to fill the feed
@@ -298,7 +298,7 @@ router.get("/feed/:userId", async (req, res) => {
       .sort({ date: -1 })
       .skip(skip)
       .limit(limit)
-      .select("title content authorName date likeCount likes theme mood tags slug userId")
+      .populate('userId', 'anonymousName profileTheme')
       .lean();
 
     // Combine and deduplicate
@@ -311,20 +311,26 @@ router.get("/feed/:userId", async (req, res) => {
       }
     }
 
-    // Mark which journals are from subscribed users
+    // Mark which journals are from subscribed users and add author field
     const journalsWithSubscriptionStatus = combinedJournals.map(journal => ({
       ...journal,
-      isFromSubscription: user.subscribedTo.some(subId => subId.toString() === journal.userId.toString())
+      isFromSubscription: user.subscribedTo.some(subId => subId.toString() === journal.userId._id.toString()),
+      author: journal.userId ? {
+        userId: journal.userId._id,
+        anonymousName: journal.userId.anonymousName,
+        profileTheme: journal.userId.profileTheme,
+      } : null,
     }));
 
     const totalCount = await Journal.countDocuments({ isPublic: true });
-    const hasMore = skip + combinedJournals.length < totalCount;
+    const hasMore = skip + journalsWithSubscriptionStatus.length < totalCount;
 
     res.json({
       journals: journalsWithSubscriptionStatus,
       hasMore,
       page,
-      total: totalCount
+      limit,
+      total: totalCount,
     });
   } catch (error) {
     console.error("Error fetching feed:", error);
