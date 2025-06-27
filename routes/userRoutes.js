@@ -543,7 +543,14 @@ const adjectives = [
   "Sparkling", "Misty", "Shimmering", "Drifting", "Gliding",
   "Swaying", "Murmuring", "Rustling", "Swishing", "Sighing",
   "Bubbling", "Gurgling", "Rippling", "Splashing", "Trickling",
-  "Humming", "Buzzing", "Chirping", "Singing", "Whistling"
+  "Humming", "Buzzing", "Chirping", "Singing", "Whistling",
+  // New additions
+  "Brave", "Curious", "Playful", "Cheerful", "Bold",
+  "Clever", "Kind", "Hopeful", "Joyful", "Radiant",
+  "Sunny", "Blissful", "Dazzling", "Gallant", "Noble",
+  "Gentle", "Lively", "Merry", "Patient", "Resilient",
+  "Wise", "Zesty", "Charming", "Daring", "Inventive",
+  "Loyal", "Mirthful", "Optimistic", "Resourceful", "Valiant"
 ];
 
 const nouns = [
@@ -556,7 +563,14 @@ const nouns = [
   "Tree", "Bird", "Butterfly", "Dragonfly", "Phoenix",
   "Dragon", "Unicorn", "Pegasus", "Griffin", "Angel",
   "Fairy", "Elf", "Dwarf", "Wizard", "Knight",
-  "Princess", "Prince", "Queen", "King"
+  "Princess", "Prince", "Queen", "King",
+  // New additions
+  "Scholar", "Guardian", "Healer", "Inventor", "Jester",
+  "Muse", "Oracle", "Paladin", "Ranger", "Scribe",
+  "Sculptor", "Sailor", "Captain", "Pilot", "Gardener",
+  "Chef", "Baker", "Composer", "Dancer", "Singer",
+  "Painter", "Magician", "Alchemist", "Merchant", "Scribe",
+  "Adventurer", "Champion", "Friend", "Guide", "Hero"
 ];
 
 const generateAnonymousName = (nickname) => {

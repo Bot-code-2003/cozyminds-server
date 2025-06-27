@@ -107,7 +107,6 @@ const journalSchema = new mongoose.Schema(
 // Already present
 journalSchema.index({ userId: 1, date: -1 });
 journalSchema.index({ isPublic: 1, date: -1 });
-journalSchema.index({ slug: 1 });
 
 // 🔥 Strongly Recommended for performance
 journalSchema.index({ userId: 1, isPublic: 1, createdAt: -1 }); // for dashboard routes

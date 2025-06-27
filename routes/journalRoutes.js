@@ -132,6 +132,9 @@ router.get("/journals/top-by-mood", async (req, res) => {
       ];
     });
 
+    if (Object.keys(facetPipelines).length === 0) {
+      return res.json({});
+    }
     const results = await Journal.aggregate([{ $facet: facetPipelines }]);
     res.json(results[0]);
   } catch (error) {

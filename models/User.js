@@ -158,7 +158,6 @@ const userSchema = new mongoose.Schema(
 
 // For searching users by nickname or email
 userSchema.index({ nickname: 1 });
-userSchema.index({ email: 1 });
 
 // For login (email lookup)
 userSchema.index({ email: 1 }); // already covered by `unique: true`, but explicitly adding is fine
