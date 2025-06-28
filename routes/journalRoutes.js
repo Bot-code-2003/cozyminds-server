@@ -22,7 +22,7 @@ router.get("/journals/with-comments", async (req, res) => {
   try {
     const page = Number.parseInt(req.query.page) || 1;
     const limit = Number.parseInt(req.query.limit) || 10;
-    const sort = req.query.sort || "-createdAt";
+    const sort = req.query.sort || "-activityScore";
     const skip = (page - 1) * limit;
 
     if (page < 1 || limit < 1 || limit > 100) {
@@ -46,13 +46,19 @@ router.get("/journals/with-comments", async (req, res) => {
       case "-commentCount":
         sortOption = { commentCount: -1, createdAt: -1 };
         break;
+      case "activityScore":
+      case "-activityScore":
       default:
-        // Default to commentCount descending if invalid
-        sortOption = { commentCount: -1, createdAt: -1 };
+        // Default to activity score descending
+        sortOption = { activityScore: -1, createdAt: -1 };
         break;
     }
 
-    // Aggregate to get journals with comment counts
+    // Calculate days since epoch for recency calculation
+    const now = new Date();
+    const daysSinceEpoch = Math.floor(now.getTime() / (1000 * 60 * 60 * 24));
+
+    // Aggregate to get journals with activity score
     const journals = await Journal.aggregate([
       { $match: { isPublic: true } },
       {
@@ -66,6 +72,51 @@ router.get("/journals/with-comments", async (req, res) => {
       {
         $addFields: {
           commentCount: { $size: "$comments" },
+          // Calculate days since creation
+          daysSinceCreation: {
+            $floor: {
+              $divide: [
+                { $subtract: [now, "$createdAt"] },
+                1000 * 60 * 60 * 24
+              ]
+            }
+          },
+          // Calculate recency factor (higher for newer posts)
+          recencyFactor: {
+            $max: [
+              0.1, // Minimum factor
+              {
+                $subtract: [
+                  1,
+                  {
+                    $divide: [
+                      { $subtract: [now, "$createdAt"] },
+                      1000 * 60 * 60 * 24 * 30 // 30 days decay
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+      },
+      {
+        $addFields: {
+          // Activity Score Formula:
+          // (Likes * 2 + Comments * 3 + Saves * 1.5) * Recency Factor
+          // This gives more weight to comments and considers recency
+          activityScore: {
+            $multiply: [
+              {
+                $add: [
+                  { $multiply: ["$likeCount", 2] },
+                  { $multiply: ["$commentCount", 3] },
+                  { $multiply: [{ $size: "$saved" }, 1.5] }
+                ]
+              },
+              "$recencyFactor"
+            ]
+          }
         },
       },
       {
@@ -82,6 +133,9 @@ router.get("/journals/with-comments", async (req, res) => {
           slug: 1,
           commentCount: 1,
           saved: 1,
+          activityScore: 1,
+          recencyFactor: 1,
+          daysSinceCreation: 1,
         },
       },
       { $sort: sortOption },
@@ -886,11 +940,11 @@ router.post("/journals/:id/like", async (req, res) => {
         const journalAuthor = await User.findById(journal.userId);
         if (liker && journalAuthor) {
           const senderName = liker.anonymousName || liker.nickname || "Someone";
-          const journalUrl = `https://starlitjournals.vercel.app/public-journal/${journal.slug}`;
+          const journalUrl = `https://starlitjournals.vercel.app/public-journals/${journal.slug}`;
           await Mail.create({
             sender: senderName,
             title: `New Like on your post \"${journal.title}\"`,
-            content: `<div style=\"font-size:16px;margin-bottom:8px;\"><b>${senderName}</b> liked your post <b>\"${journal.title}\"</b>.</div><a href=\"${journalUrl}\" style=\"display:inline-block;padding:8px 16px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;\">View Journal</a>`,
+            content: `<div style=\"font-size:16px;margin-bottom:8px;\"><b>${senderName}</b> liked your post <b>\"${journal.title}\"</b>.</div><a href=\"${journalUrl}\" style=\"display:inline-block;padding:8px 16px;background:#222;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;\">View Journal</a>`,
             recipients: [{ userId: journal.userId, read: false }],
             mailType: "other",
             isSystemMail: true,
@@ -999,25 +1053,80 @@ router.get("/popular-topics", async (req, res) => {
   }
 });
 
-// Get popular writers based on total likes and journal count
+// Get popular writers based on comprehensive engagement metrics
 router.get("/popular-writers", async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
 
-    // Aggregate to get writers with their total likes and journal counts
+    // Get current date for recency calculations
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    // Aggregate to get writers with comprehensive metrics
     const popularWriters = await Journal.aggregate([
       { $match: { isPublic: true } },
+      // Lookup comments for engagement calculation
+      {
+        $lookup: {
+          from: "comments",
+          localField: "_id",
+          foreignField: "journalId",
+          as: "comments",
+        },
+      },
+      {
+        $addFields: {
+          commentCount: { $size: "$comments" },
+          // Calculate engagement score per post
+          engagementScore: {
+            $add: [
+              { $multiply: ["$likeCount", 2] },
+              { $multiply: ["$commentCount", 3] },
+              { $multiply: [{ $size: "$saved" }, 1.5] }
+            ]
+          },
+          // Recency factor (recent posts get more weight)
+          recencyFactor: {
+            $cond: [
+              { $gte: ["$createdAt", sevenDaysAgo] },
+              1.5, // Recent posts get 50% boost
+              {
+                $cond: [
+                  { $gte: ["$createdAt", thirtyDaysAgo] },
+                  1.2, // Posts within 30 days get 20% boost
+                  1.0  // Older posts get normal weight
+                ]
+              }
+            ]
+          }
+        },
+      },
       {
         $group: {
           _id: "$userId",
           totalLikes: { $sum: "$likeCount" },
+          totalComments: { $sum: "$commentCount" },
+          totalSaves: { $sum: { $size: "$saved" } },
           journalCount: { $sum: 1 },
           avgLikes: { $avg: "$likeCount" },
+          avgComments: { $avg: "$commentCount" },
+          totalEngagement: { $sum: "$engagementScore" },
+          avgEngagement: { $avg: "$engagementScore" },
+          recentPosts: {
+            $sum: {
+              $cond: [
+                { $gte: ["$createdAt", sevenDaysAgo] },
+                1,
+                0
+              ]
+            }
+          },
           authorName: { $first: "$authorName" },
+          lastPostDate: { $max: "$createdAt" },
+          firstPostDate: { $min: "$createdAt" },
         },
       },
-      { $sort: { totalLikes: -1, journalCount: -1 } },
-      { $limit: limit },
       {
         $lookup: {
           from: "users",
@@ -1027,14 +1136,94 @@ router.get("/popular-writers", async (req, res) => {
         },
       },
       {
+        $addFields: {
+          // Calculate days since first post (consistency factor)
+          daysSinceFirstPost: {
+            $floor: {
+              $divide: [
+                { $subtract: [now, "$firstPostDate"] },
+                1000 * 60 * 60 * 24
+              ]
+            }
+          },
+          // Calculate days since last post (activity factor)
+          daysSinceLastPost: {
+            $floor: {
+              $divide: [
+                { $subtract: [now, "$lastPostDate"] },
+                1000 * 60 * 60 * 24
+              ]
+            }
+          },
+          // Get user data
+          userData: { $arrayElemAt: ["$user", 0] }
+        },
+      },
+      {
+        $addFields: {
+          // Popularity Score Formula:
+          // (Total Engagement * 0.4) + (Avg Engagement * 0.3) + (Consistency * 0.2) + (Recent Activity * 0.1)
+          // Where:
+          // - Consistency = min(journalCount / max(daysSinceFirstPost/30, 1), 5) * 10
+          // - Recent Activity = max(0, 10 - daysSinceLastPost) * 2
+          // - Recent Activity bonus = recentPosts * 5
+          
+          consistencyScore: {
+            $multiply: [
+              {
+                $min: [
+                  {
+                    $divide: [
+                      "$journalCount",
+                      { $max: [{ $divide: ["$daysSinceFirstPost", 30] }, 1] }
+                    ]
+                  },
+                  5
+                ]
+              },
+              10
+            ]
+          },
+          activityScore: {
+            $add: [
+              { $multiply: [{ $max: [{ $subtract: [10, "$daysSinceLastPost"] }, 0] }, 2] },
+              { $multiply: ["$recentPosts", 5] }
+            ]
+          },
+          popularityScore: {
+            $add: [
+              { $multiply: ["$totalEngagement", 0.4] },
+              { $multiply: ["$avgEngagement", 0.3] },
+              { $multiply: ["$consistencyScore", 0.2] },
+              { $multiply: ["$activityScore", 0.1] }
+            ]
+          }
+        },
+      },
+      { $sort: { popularityScore: -1, totalEngagement: -1 } },
+      { $limit: limit },
+      {
         $project: {
           userId: "$_id",
           authorName: 1,
           totalLikes: 1,
+          totalComments: 1,
+          totalSaves: 1,
+          journalCount: 1,
           avgLikes: { $round: ["$avgLikes", 1] },
-          anonymousName: { $arrayElemAt: ["$user.anonymousName", 0] },
-          bio: { $arrayElemAt: ["$user.bio", 0] },
-          profileTheme: { $arrayElemAt: ["$user.profileTheme", 0] },
+          avgComments: { $round: ["$avgComments", 1] },
+          avgEngagement: { $round: ["$avgEngagement", 1] },
+          recentPosts: 1,
+          daysSinceLastPost: 1,
+          popularityScore: { $round: ["$popularityScore", 1] },
+          consistencyScore: { $round: ["$consistencyScore", 1] },
+          activityScore: { $round: ["$activityScore", 1] },
+          anonymousName: "$userData.anonymousName",
+          bio: "$userData.bio",
+          profileTheme: "$userData.profileTheme",
+          currentStreak: "$userData.currentStreak",
+          longestStreak: "$userData.longestStreak",
+          subscriberCount: "$userData.subscriberCount",
         },
       },
     ]);
