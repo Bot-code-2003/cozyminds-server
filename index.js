@@ -14,9 +14,11 @@ const app = express();
 
 // Define allowed origins
 const allowedOrigins = [
-  "http://localhost:5173", // Development
-  "https://starlitjournals.com", // Production
+  "http://localhost:5173",
+  "https://starlitjournals.com",
+  "https://www.starlitjournals.com"
 ];
+
 
 // CORS configuration
 app.use(
@@ -73,9 +75,9 @@ app.use("/", feedbackRoutes);
 // });
 
 // Connect to MongoDB and start the server
-// const mongoURL = "mongodb://localhost:27017/CozyMind";
-const mongoURL =
-  "mongodb+srv://madisettydharmadeep:cozyminds@cozyminds.yth43.mongodb.net/?retryWrites=true&w=majority&appName=cozyminds";
+const mongoURL = "mongodb://localhost:27017/CozyMind";
+// const mongoURL =
+//   "mongodb+srv://madisettydharmadeep:cozyminds@cozyminds.yth43.mongodb.net/?retryWrites=true&w=majority&appName=cozyminds";
 
 mongoose
   .connect(mongoURL)
