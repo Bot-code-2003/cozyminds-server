@@ -100,7 +100,7 @@ router.post("/comments", async (req, res) => {
       const journalAuthor = await User.findById(journal.userId);
       if (journalAuthor) {
         const senderName = user.anonymousName || user.nickname || 'Someone';
-        const journalUrl = `https://starlitjournals.vercel.app/public-journal/${journal.slug}`;
+        const journalUrl = `https://starlitjournals.com/public-journal/${journal.slug}`;
         await Mail.create({
           sender: senderName,
           title: `New Comment on your post "${journal.title}"`,
@@ -154,7 +154,7 @@ router.post("/comments/:commentId/like", async (req, res) => {
         const journal = await Journal.findById(comment.journalId);
         if (liker && commentAuthor && journal) {
           const senderName = liker.anonymousName || liker.nickname || 'Someone';
-          const commentUrl = `https://starlitjournals.vercel.app/public-journal/${journal.slug}#comment-${comment._id}`;
+          const commentUrl = `https://starlitjournals.com/public-journal/${journal.slug}#comment-${comment._id}`;
           await Mail.create({
             sender: senderName,
             title: `New Like on your comment (Post: "${journal.title}")`,

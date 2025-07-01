@@ -150,6 +150,12 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       required: true,
     },
+    streak: { type: Number, default: 0 },
+    lastJournalDate: { type: Date, default: null },
+    savedEntries: {
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Journal' }],
+      default: [],
+    },
   },
   { timestamps: true }
 );

@@ -15,7 +15,7 @@ const app = express();
 // Define allowed origins
 const allowedOrigins = [
   "http://localhost:5173", // Development
-  "https://starlitjournals.vercel.app", // Production
+  "https://starlitjournals.com", // Production
 ];
 
 // CORS configuration

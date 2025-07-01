@@ -133,6 +133,16 @@ const getRandomPrompt = () => {
   return WEEKLY_PROMPTS[Math.floor(Math.random() * WEEKLY_PROMPTS.length)];
 };
 
+// Helper to get ISO week number
+function getWeekNumber(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+  const weekNum = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+  return weekNum;
+}
+
 // Handle Login
 router.post("/login", async (req, res) => {
   try {
@@ -291,75 +301,71 @@ router.post("/login", async (req, res) => {
     }
 
     // 4. Weekly Summary Email
+    const isMonday = now.getDay() === 1;
     const lastSummary = user.lastWeeklySummarySent ? new Date(user.lastWeeklySummarySent) : null;
-    const shouldSendSummary = !lastSummary || (now - lastSummary) > 7 * 24 * 60 * 60 * 1000;
-    if (isFirstLoginOfWeek(lastVisited) && shouldSendSummary) {
-      const recentWeeklySummary = await Mail.findOne({
-        mailType: "weeklySummary",
-        "recipients.userId": user._id,
-        date: { $gte: getDateDaysAgo(EMAIL_CONFIG.WEEKLY_SUMMARY_COOLDOWN_DAYS) },
+    const lastSummaryWeek = lastSummary ? lastSummary.getFullYear() + '-' + getWeekNumber(lastSummary) : null;
+    const thisWeek = now.getFullYear() + '-' + getWeekNumber(now);
+    const shouldSendSummary = isMonday && lastSummaryWeek !== thisWeek;
+    if (shouldSendSummary) {
+      const oneWeekAgo = getDateDaysAgo(7);
+      const weeklyEntries = await Journal.find({
+        userId: user._id,
+        date: { $gte: oneWeekAgo },
       });
-      if (!recentWeeklySummary) {
-        const oneWeekAgo = getDateDaysAgo(7);
-        const weeklyEntries = await Journal.find({
-          userId: user._id,
-          date: { $gte: oneWeekAgo },
-        });
-        if (weeklyEntries.length > 0) {
-          const moodCounts = weeklyEntries.reduce((acc, entry) => {
-            acc[entry.mood] = (acc[entry.mood] || 0) + 1;
-            return acc;
-          }, {});
-          const mostFrequentMood = Object.entries(moodCounts).reduce(
-            (max, [mood, count]) => count > max.count ? { mood, count } : max,
-            { mood: "Neutral", count: 0 }
-          ).mood;
-          const preferredTime = weeklyEntries.reduce((acc, entry) => {
-            const hour = new Date(entry.date).getHours();
-            acc[hour] = (acc[hour] || 0) + 1;
-            return acc;
-          }, {});
-          const maxHour = Object.entries(preferredTime).reduce(
-            (max, [hour, count]) => count > max.count ? { hour: parseInt(hour), count } : max,
-            { hour: 0, count: 0 }
-          ).hour;
-          const timeLabel =
-            maxHour >= 5 && maxHour < 12
-              ? "morning"
-              : maxHour >= 12 && maxHour < 17
-              ? "afternoon"
-              : maxHour >= 17 && maxHour < 21
-              ? "evening"
-              : "night";
+      if (weeklyEntries.length > 0) {
+        const moodCounts = weeklyEntries.reduce((acc, entry) => {
+          acc[entry.mood] = (acc[entry.mood] || 0) + 1;
+          return acc;
+        }, {});
+        const mostFrequentMood = Object.entries(moodCounts).reduce(
+          (max, [mood, count]) => count > max.count ? { mood, count } : max,
+          { mood: "Neutral", count: 0 }
+        ).mood;
+        const preferredTime = weeklyEntries.reduce((acc, entry) => {
+          const hour = new Date(entry.date).getHours();
+          acc[hour] = (acc[hour] || 0) + 1;
+          return acc;
+        }, {});
+        const maxHour = Object.entries(preferredTime).reduce(
+          (max, [hour, count]) => count > max.count ? { hour: parseInt(hour), count } : max,
+          { hour: 0, count: 0 }
+        ).hour;
+        const timeLabel =
+          maxHour >= 5 && maxHour < 12
+            ? "morning"
+            : maxHour >= 12 && maxHour < 17
+            ? "afternoon"
+            : maxHour >= 17 && maxHour < 21
+            ? "evening"
+            : "night";
 
-          const template = getRandomTemplate(mailTemplates.weeklySummary);
-          const randomPrompt = getRandomPrompt();
-          const publicCount = weeklyEntries.filter(e => e.isPublic).length;
-          const privateCount = weeklyEntries.length - publicCount;
-          const currentStreak = user.currentStreak || 0;
-          const totalEntries = await Journal.countDocuments({ userId: user._id });
-          const content = template.content
-            .replace("{entryCount}", weeklyEntries.length.toString())
-            .replace("{publicCount}", publicCount.toString())
-            .replace("{privateCount}", privateCount.toString())
-            .replace("{mostFrequentMood}", mostFrequentMood)
-            .replace("{preferredTime}", timeLabel)
-            .replace("{randomPrompt}", randomPrompt)
-            .replace("{currentStreak}", currentStreak.toString())
-            .replace("{totalEntries}", totalEntries.toString());
-          addMail({
-            sender: template.sender,
-            title: template.title,
-            content: content,
-            recipients: [{ userId: user._id, read: false }],
-            mailType: "reward",
-            rewardAmount: template.rewardAmount,
-            metadata: { milestone: 0, specialReward: null },
-            date: new Date(),
-            themeId: user.activeMailTheme,
-          });
-          user.lastWeeklySummarySent = now;
-        }
+        const template = getRandomTemplate(mailTemplates.weeklySummary);
+        const randomPrompt = getRandomPrompt();
+        const publicCount = weeklyEntries.filter(e => e.isPublic).length;
+        const privateCount = weeklyEntries.length - publicCount;
+        const currentStreak = user.currentStreak || 0;
+        const totalEntries = await Journal.countDocuments({ userId: user._id });
+        const content = template.content
+          .replace("{entryCount}", weeklyEntries.length.toString())
+          .replace("{publicCount}", publicCount.toString())
+          .replace("{privateCount}", privateCount.toString())
+          .replace("{mostFrequentMood}", mostFrequentMood)
+          .replace("{preferredTime}", timeLabel)
+          .replace("{randomPrompt}", randomPrompt)
+          .replace("{currentStreak}", currentStreak.toString())
+          .replace("{totalEntries}", totalEntries.toString());
+        addMail({
+          sender: template.sender,
+          title: template.title,
+          content: content,
+          recipients: [{ userId: user._id, read: false }],
+          mailType: "reward",
+          rewardAmount: template.rewardAmount,
+          metadata: { milestone: 0, specialReward: null },
+          date: new Date(),
+          themeId: user.activeMailTheme,
+        });
+        user.lastWeeklySummarySent = now;
       }
     }
 
@@ -573,18 +579,28 @@ const nouns = [
   "Adventurer", "Champion", "Friend", "Guide", "Hero"
 ];
 
-const generateAnonymousName = (nickname) => {
-  const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
-  const noun = nouns[Math.floor(Math.random() * nouns.length)];
+// simple consistent hash
+function simpleHash(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash * 31 + str.charCodeAt(i)) % 1000000007;
+  }
+  return hash >>> 0; // force positive
+}
 
-  const hash = nickname
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "")
-    .split("")
-    .reduce((acc, char) => acc + char.charCodeAt(0), 0) % 10000;
+function generateAnonymousName(nickname, password) {
+  const clean = nickname.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const combined = clean + password;
 
-  return `${adj}${noun}${hash}`;
-};
+  const hashed = simpleHash(combined);
+
+  const adjIndex = hashed % adjectives.length;
+  const nounIndex = (hashed >> 8) % nouns.length;
+  const suffix = (hashed % 10000).toString().padStart(4, "0");
+
+  return `${adjectives[adjIndex]}${nouns[nounIndex]}${suffix}`;
+}
+
 
 // Get user data
 router.get("/user/:id", async (req, res) => {

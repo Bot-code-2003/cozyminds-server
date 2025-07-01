@@ -940,7 +940,7 @@ router.post("/journals/:id/like", async (req, res) => {
         const journalAuthor = await User.findById(journal.userId);
         if (liker && journalAuthor) {
           const senderName = liker.anonymousName || liker.nickname || "Someone";
-          const journalUrl = `https://starlitjournals.vercel.app/public-journals/${journal.slug}`;
+          const journalUrl = `https://starlitjournals.com/public-journals/${journal.slug}`;
           await Mail.create({
             sender: senderName,
             title: `New Like on your post \"${journal.title}\"`,
@@ -1402,6 +1402,105 @@ router.get("/journals/dashboard/private/:userId", async (req, res) => {
   } catch (error) {
     console.error("Error fetching private dashboard journals:", error);
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// Save or unsave a journal
+router.post("/journals/:journalId/save", async (req, res) => {
+  const { journalId } = req.params;
+  const { userId } = req.body;
+
+  if (!mongoose.Types.ObjectId.isValid(journalId) || !mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: "Invalid Journal or User ID" });
+  }
+
+  try {
+    const journal = await Journal.findById(journalId);
+    const user = await User.findById(userId);
+
+    if (!journal || !user) {
+      return res.status(404).json({ message: "Journal or User not found" });
+    }
+
+    const isSaved = user.savedEntries.some(id => id.equals(journalId));
+
+    if (isSaved) {
+      // Unsave the journal
+      user.savedEntries.pull(journalId);
+    } else {
+      // Save the journal
+      user.savedEntries.push(journalId);
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      message: `Journal ${isSaved ? "unsaved" : "saved"} successfully`,
+      savedEntries: user.savedEntries,
+    });
+  } catch (error) {
+    console.error("Error saving/unsaving journal:", error);
+    res.status(500).json({ message: "Error saving/unsaving journal" });
+  }
+});
+
+// Get all saved journals for a user
+router.get("/journals/saved/:userId", async (req, res) => {
+  const { userId } = req.params;
+  const page = Number.parseInt(req.query.page) || 1;
+  const limit = Number.parseInt(req.query.limit) || 20;
+  const skip = (page - 1) * limit;
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: "Invalid User ID" });
+  }
+
+  try {
+    const user = await User.findById(userId).populate({
+      path: 'savedEntries',
+      options: {
+        sort: { createdAt: -1 },
+        skip: skip,
+        limit: limit,
+      },
+      populate: {
+        path: 'userId',
+        select: 'anonymousName profileTheme'
+      }
+    }).lean();
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const totalSaved = await User.findById(userId).select('savedEntries');
+    const hasMore = skip + user.savedEntries.length < totalSaved.savedEntries.length;
+    
+    res.status(200).json({ journals: user.savedEntries, hasMore });
+  } catch (error) {
+    console.error("Error fetching saved journals:", error);
+    res.status(500).json({ message: "Error fetching saved journals" });
+  }
+});
+
+// GET a specific journal entry by ID for editing
+router.get("/journals/:id", async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: "Invalid journal ID format." });
+  }
+
+  try {
+    const journal = await Journal.findById(id).lean();
+    if (!journal) {
+      return res.status(404).json({ message: "Journal entry not found." });
+    }
+
+    res.status(200).json({ journal });
+  } catch (error) {
+    console.error("Error fetching journal:", error);
+    res.status(500).json({ message: "Server Error", error: error.message });
   }
 });
 
