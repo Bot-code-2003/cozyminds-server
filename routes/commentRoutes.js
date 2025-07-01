@@ -104,7 +104,7 @@ router.post("/comments", async (req, res) => {
         await Mail.create({
           sender: senderName,
           title: `New Comment on your post "${journal.title}"`,
-          content: `<div style="font-size:16px;margin-bottom:8px;"><b>${senderName}</b> commented on your post <b>"${journal.title}"</b>:</div><blockquote style="margin:8px 0;padding:8px 12px;background:#f3f4f6;border-left:4px solid #2563eb;border-radius:4px;font-style:italic;">${comment.content}</blockquote><a href="${journalUrl}" style="display:inline-block;padding:8px 16px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">View Journal</a>` ,
+          content: `<div style="font-size:16px;margin-bottom:8px;"><b>${senderName}</b> commented on your post <b>"${journal.title}"</b>:</div><blockquote style="margin:8px 0;padding:8px 12px;background:#f3f4f6;border-left:4px solid #2563eb;border-radius:4px;font-style:italic;">${comment.content}</blockquote><a href="${journalUrl}" style="display:inline-block;padding:8px 16px;background:#fff;color:#2563eb;border:1.5px solid #2563eb;border-radius:6px;text-decoration:none;font-weight:600;">View Journal</a>` ,
           recipients: [{ userId: journal.userId, read: false }],
           mailType: 'other',
           isSystemMail: true,
