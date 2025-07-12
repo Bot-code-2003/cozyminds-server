@@ -21,29 +21,12 @@ const journalSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    mood: {
-      type: String,
-      enum: [
-        "Happy",
-        "Neutral",
-        "Sad",
-        "Angry",
-        "Anxious",
-        "Tired",
-        "Reflective",
-        "Excited",
-        "Grateful",
-        "Funny",
-        "Inspired",
-        "Disappointed",
-        "Scared",
-        "Imaginative",
-        "Productive",
-        "Relaxed",
-        "Hopeful",
-      ],
-      required: true,
-    },
+    // Remove mood field
+    // mood: {
+    //   type: String,
+    //   default: "Neutral",
+    //   required: true,
+    // },
     tags: [
       {
         type: String,
@@ -98,6 +81,18 @@ const journalSchema = new mongoose.Schema(
         return this.isPublic;
       },
     },
+    // Add thumbnail field for journal entries
+    thumbnail: {
+      type: String,
+      default: null,
+    },
+    // Add category enum
+    category: {
+      type: String,
+      enum: ["story", "journal"],
+      default: "journal",
+      required: true,
+    },
   },
   {
     timestamps: true,
@@ -111,7 +106,6 @@ journalSchema.index({ isPublic: 1, date: -1 });
 // 🔥 Strongly Recommended for performance
 journalSchema.index({ userId: 1, isPublic: 1, createdAt: -1 }); // for dashboard routes
 journalSchema.index({ tags: 1, isPublic: 1 }); // for tag searches
-journalSchema.index({ mood: 1, isPublic: 1 }); // for mood-based recommendations
 journalSchema.index({ collections: 1, userId: 1 }); // for collection filtering
 journalSchema.index({ saved: 1 }); // for saved journal queries
 journalSchema.index({ likeCount: -1, createdAt: -1 }); // for trending, top, etc.

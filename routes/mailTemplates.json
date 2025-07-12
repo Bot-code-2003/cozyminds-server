@@ -1,126 +1,16 @@
 {
-  "welcome": [
+  "likeNotification": [
     {
       "sender": "Starlit Journals Team",
-      "title": "Welcome to Starlit Journals!",
-      "content": "# Welcome to Starlit Journals!\n\nWe're thrilled to have you join our cozy, supportive community. Starlit Journals is your safe space to reflect, express, and grow—one entry at a time.\n\n## ✨ What you can do here\n- **Daily Journaling:** Write about your day, your thoughts, or anything on your mind.\n- **Mood Tracking:** Select your mood with each entry and discover your emotional patterns over time.\n- **Streak & Writing Rewards:** Earn coins for journaling streaks and writing milestones.\n- **Public & Private Entries:** Keep entries private or share them anonymously in the [Public Journals feed](https://starlitjournals.com/public-journals).\n- **Weekly Summaries:** Receive a weekly mail with your stats, most frequent mood, and a writing prompt.\n- **CozyShop:** Spend your coins on journal themes, stickers, and more to personalize your experience.\n- **Profile & Anonymity:** Set an anonymous name, customize your profile, and control your privacy.\n- **Feedback & Support:** We're always here to help. Reply to this mail with any questions or suggestions!\n\n## 🛒 The CozyShop\nUnlock new journal themes, stickers, and more! Visit the [CozyShop](https://starlitjournals.com/cozyshop) to see what's available. Use your coins to personalize your journaling experience.\n\n## 🌍 Public Journals\nShare your thoughts with the world or get inspired by others. Make any entry public to appear in the [Public Journals feed](https://starlitjournals.com/public-journals). You can browse, like, and follow other writers—anonymously!\n\n## 🏆 Rewards & Milestones\nEarn coins for your dedication! Here are the current rewards:\n\n**Streak Milestones:**\n- 7 days: 60 coins\n- 14 days: 80 coins\n- 30 days: 150 coins\n- 100 days: 300 coins\n- 200 days: 450 coins\n- 300 days: 600 coins\n- 365 days: 1200 coins + special theme\n\n**Entry Milestones:**\n- 1 entry: 50 coins\n- 5 entries: 60 coins\n- 10 entries: 80 coins\n- 20 entries: 100 coins\n- 30 entries: 120 coins\n- 50 entries: 200 coins\n- 100 entries: 300 coins\n- 200 entries: 450 coins\n- 300 entries: 600 coins\n- 365 entries: 1200 coins + special badge\n\n## 🎁 Your Welcome Gift\nWe've added **50 coins** to your account as a thank you for joining. Use them in the CozyShop to unlock new themes and items!\n\n## 🚀 Getting Started\n1. [Start your first journal entry](https://starlitjournals.com/journaling-alt)\n2. Explore your dashboard for stats and insights\n3. Visit the [CozyShop](https://starlitjournals.com/cozyshop) to see what you can unlock\n4. Set up your profile and choose an anonymous name\n\nIf you ever need help, just reply to this mail.\n\nHappy journaling!\n\n— The Starlit Journals Team"
+      "title": "Someone liked your journal!",
+      "content": "# Your journal entry received a like!\n\nSomeone appreciated your writing. Keep sharing your thoughts!"
     }
   ],
-  "seasonal": [
+  "commentNotification": [
     {
       "sender": "Starlit Journals Team",
-      "title": "Happy Valentine's Day!",
-      "content": "# Happy Valentine's Day! \n\n:heart: Wishing you a day filled with love and kindness.\n\n> Take a moment to write something for yourself or someone you care about."
+      "title": "New comment on your journal!",
+      "content": "# Someone commented on your journal entry\n\nCheck out the new comment and join the conversation!"
     }
-  ],
-  "feedback": [
-    {
-      "sender": "Starlit Journals Team",
-      "title": "Help Us Improve (50 coins reward)",
-      "content": "# We Value Your Feedback!\n\n**It's your 3rd day!** We'd love to hear from you.\n\n[Fill out this quick feedback form](https://tally.so/r/3xoNOo) and help us make Starlit Journals even better.\n\n**As a thank you, you'll receive _50 coins_!** :tada:",
-      "rewardAmount": 50
-    }
-  ],
-  "reward": [
-    {
-      "sender": "Starlit Journals Team",
-      "title": "Your Welcome Gift",
-      "content": "# Welcome Gift\n\n**We've added _50 coins_ to your account as a thank you for joining!**\n\nEnjoy journaling and treat yourself in the CozyShop! :sparkles:",
-      "rewardAmount": 50
-    }
-  ],
-  "streakMilestone": {
-    "7day": [
-      { "sender": "Starlit Journals Team", "title": "7-Day Streak!", "content": "# 7-Day Streak!\n\n:tada: **You've journaled for 7 days in a row!**\n\n**Reward:** 60 coins", "rewardAmount": 60 }
-    ],
-    "14day": [
-      { "sender": "Starlit Journals Team", "title": "14-Day Streak!", "content": "# 14-Day Streak!\n\n**Two weeks of journaling!**\n\n**Reward:** 80 coins :sparkles:", "rewardAmount": 80 }
-    ],
-    "30day": [
-      { "sender": "Starlit Journals Team", "title": "30-Day Streak!", "content": "# 30-Day Streak!\n\n**A month of journaling!**\n\n**Reward:** 150 coins :trophy:", "rewardAmount": 150 }
-    ],
-    "100day": [
-      { "sender": "Starlit Journals Team", "title": "100-Day Streak!", "content": "# 100-Day Streak!\n\n**100 days of dedication!**\n\n**Reward:** 300 coins :star2:", "rewardAmount": 300 }
-    ],
-    "200day": [
-      { "sender": "Starlit Journals Team", "title": "200-Day Streak!", "content": "# 200-Day Streak!\n\n**200 days of journaling!**\n\n**Reward:** 450 coins :medal_sports:", "rewardAmount": 450 }
-    ],
-    "300day": [
-      { "sender": "Starlit Journals Team", "title": "300-Day Streak!", "content": "# 300-Day Streak!\n\n**300 days!**\n\n**Reward:** 600 coins :confetti_ball:", "rewardAmount": 600 }
-    ],
-    "365day": [
-      { "sender": "Starlit Journals Team", "title": "1 Year Streak!", "content": "# 1 Year Streak!\n\n**A year of journaling!**\n\n**Reward:** 1200 coins and a special theme :crown:", "rewardAmount": 1200, "specialReward": "Journaling Legend Theme" }
-    ]
-  },
-  "entryMilestone": {
-    "1entry": [
-      { "sender": "Starlit Journals Team", "title": "First Entry!", "content": "# First Entry!\n\n**You've written your very first journal entry.**\n\n**Reward:** 70 coins :sparkles:", "rewardAmount": 70 }
-    ],
-    "5entries": [
-      { "sender": "Starlit Journals Team", "title": "5 Entries!", "content": "# 5 Entries!\n\n**5 entries written!**\n\n**Reward:** 60 coins :star2:", "rewardAmount": 60 }
-    ],
-    "10entries": [
-      { "sender": "Starlit Journals Team", "title": "10 Entries!", "content": "# 10 Entries!\n\n**10 entries milestone!**\n\n**Reward:** 80 coins :tada:", "rewardAmount": 80 }
-    ],
-    "20entries": [
-      { "sender": "Starlit Journals Team", "title": "20 Entries!", "content": "# 20 Entries!\n\n**20 entries!**\n\n**Reward:** 100 coins :medal_sports:", "rewardAmount": 100 }
-    ],
-    "30entries": [
-      { "sender": "Starlit Journals Team", "title": "30 Entries!", "content": "# 30 Entries!\n\n**30 entries milestone!**\n\n**Reward:** 120 coins :confetti_ball:", "rewardAmount": 120 }
-    ],
-    "50entries": [
-      { "sender": "Starlit Journals Team", "title": "50 Entries!", "content": "# 50 Entries!\n\n**50 entries!**\n\n**Reward:** 200 coins :trophy:", "rewardAmount": 200 }
-    ],
-    "100entries": [
-      { "sender": "Starlit Journals Team", "title": "100 Entries!", "content": "# 100 Entries!\n\n**100 entries milestone!**\n\n**Reward:** 300 coins :star2:", "rewardAmount": 300 }
-    ],
-    "200entries": [
-      { "sender": "Starlit Journals Team", "title": "200 Entries!", "content": "# 200 Entries!\n\n**200 entries!**\n\n**Reward:** 450 coins :medal_sports:", "rewardAmount": 450 }
-    ],
-    "300entries": [
-      { "sender": "Starlit Journals Team", "title": "300 Entries!", "content": "# 300 Entries!\n\n**300 entries milestone!**\n\n**Reward:** 600 coins :confetti_ball:", "rewardAmount": 600 }
-    ],
-    "365entries": [
-      { "sender": "Starlit Journals Team", "title": "365 Entries!", "content": "# 365 Entries!\n\n**A year's worth of entries!**\n\n**Reward:** 1200 coins and a special badge :crown:", "rewardAmount": 1200, "specialReward": "Master Journaler Badge" }
-    ]
-  },
-  "weeklySummary": [
-    {
-      "sender": "Starlit Journals Team",
-      "title": "Your Weekly Summary",
-      "content": "# Your Weekly Journal Summary\n\nHere's a look at your week in Starlit Journals:\n\n- **Total Entries:** {entryCount}\n- **Public Entries:** {publicCount}\n- **Private Entries:** {privateCount}\n- **Most Frequent Mood:** {mostFrequentMood}\n- **Preferred Writing Time:** {preferredTime}\n\n## 🏆 Milestones\n- **Current Streak:** {currentStreak} days\n- **Total Entries:** {totalEntries}\n\n## ✨ Writing Prompt\n> {randomPrompt}\n\nKeep up the great work! Every entry is a step on your journey.\n\n— The Starlit Journals Team"
-    }
-  ],
-  "prompt": [
-    { "sender": "Starlit Journals Team", "title": "Writing Prompt", "content": "# Writing Prompt\n\n> Write about a small moment that made you smile recently." },
-    { "sender": "Starlit Journals Team", "title": "Writing Prompt", "content": "# Writing Prompt\n\n> Describe a place where you feel most at peace." },
-    { "sender": "Starlit Journals Team", "title": "Writing Prompt", "content": "# Writing Prompt\n\n> What is something you're looking forward to?" }
-  ],
-  "moods": {
-    "positive": [
-      {
-        "sender": "Starlit Journals Team",
-        "title": "Keep That Positive Energy!",
-        "content": "# Keep Shining Bright!\n\nWe've noticed a lot of positivity in your recent journals. That's amazing! Keep embracing the good vibes and celebrating your wins, big or small. :sparkles:",
-        "rewardAmount": 10
-      }
-    ],
-    "negative": [
-      {
-        "sender": "Starlit Journals Team",
-        "title": "It's Okay to Not Be Okay",
-        "content": "# A Gentle Reminder\n\nWe noticed you've been having some tough moments. Remember that every feeling is valid. Be kind to yourself, and know that you've got a safe space here to work through it. :heart:"
-      }
-    ],
-    "mixed": [
-      {
-        "sender": "Starlit Journals Team",
-        "title": "Embracing Your Journey",
-        "content": "# Embracing All Your Feelings\n\nYour recent entries show a mix of emotions, and that's completely normal. Life is a beautiful blend of ups and downs. Keep exploring your feelings—you're doing great."
-      }
-    ]
-  },
-  "mailThemes": {
-    "default": { "styles": {}, "contentPrefixes": [""], "contentSuffixes": [""] }
-  }
+  ]
 }

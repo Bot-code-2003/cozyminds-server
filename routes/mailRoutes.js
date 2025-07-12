@@ -214,86 +214,9 @@ router.put("/mail/:id/read", async (req, res) => {
   }
 });
 
-// Claim reward from mail
-router.put("/mail/:id/claim-reward", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { userId } = req.body;
-
-    // Validate IDs
-    if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ message: "Invalid ID format." });
-    }
-
-    // Find the mail
-    const mail = await Mail.findById(id);
-    if (!mail) {
-      return res.status(404).json({ message: "Mail not found." });
-    }
-
-    // Check if mail is a reward mail
-    if (mail.mailType !== "reward") {
-      return res.status(400).json({ message: "This mail has no reward to claim." });
-    }
-
-    // For system mails, add user to recipients if not already there
-    if (mail.isSystemMail && mail.sendToAllUsers) {
-      const existingRecipient = mail.recipients.find(
-        (r) => r.userId.toString() === userId
-      );
-
-      if (!existingRecipient) {
-        mail.recipients.push({
-          userId,
-          read: true,
-          rewardClaimed: true,
-          receivedAt: new Date()
-        });
-      } else if (existingRecipient.rewardClaimed) {
-        return res.status(400).json({ message: "Reward already claimed." });
-      } else {
-        existingRecipient.rewardClaimed = true;
-        existingRecipient.read = true;
-      }
-    } else {
-      // For personal mails, update existing recipient
-      const recipient = mail.recipients.find(
-        (r) => r.userId.toString() === userId
-      );
-      if (!recipient) {
-        return res.status(403).json({ message: "User is not a recipient of this mail." });
-      }
-      if (recipient.rewardClaimed) {
-        return res.status(400).json({ message: "Reward already claimed." });
-      }
-      recipient.rewardClaimed = true;
-      recipient.read = true;
-    }
-
-    // Find user and update coins
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found." });
-    }
-
-    // Get reward amount (default to 50 if not specified)
-    const rewardAmount = mail.rewardAmount || 50;
-
-    // Add coins to user
-    user.coins = (user.coins || 0) + rewardAmount;
-    await user.save();
-
-    await mail.save();
-
-    res.status(200).json({
-      message: `Reward of ${rewardAmount} coins claimed successfully.`,
-      newCoinsBalance: user.coins,
-    });
-  } catch (error) {
-    console.error("Error claiming reward:", error);
-    res.status(500).json({ message: "Server Error", error: error.message });
-  }
-});
+// Remove all routes and logic related to rewards, milestones, summaries, prompts, moods, seasonals, and feedback mails.
+// Only keep logic for sending and retrieving notification mails like 'liked your journal', 'commented on your journal', etc.
+// Remove any reward-claiming endpoints and related logic.
 
 // Cleanup function to delete expired mails
 const cleanupExpiredMails = async () => {
