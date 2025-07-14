@@ -556,4 +556,26 @@ router.get("/recommendations", async (req, res) => {
   }
 });
 
+// Feature Showcase: Top 3 latest public journals and stories
+router.get("/api/feature-showcase", async (req, res) => {
+  try {
+    const [journals, stories] = await Promise.all([
+      Journal.find({ isPublic: true, category: "journal" })
+        .sort({ createdAt: -1 })
+        .limit(3)
+        .select("title slug authorName createdAt likeCount commentCount thumbnail")
+        .lean(),
+      Journal.find({ isPublic: true, category: "story" })
+        .sort({ createdAt: -1 })
+        .limit(3)
+        .select("title slug authorName createdAt likeCount commentCount thumbnail")
+        .lean(),
+    ]);
+    res.json({ journals, stories });
+  } catch (error) {
+    console.error("Error fetching feature showcase:", error);
+    res.status(500).json({ message: "Error fetching feature showcase", error: error.message });
+  }
+});
+
 export default router;
