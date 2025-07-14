@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import Journal from "../models/Journal.js";
 import User from "../models/User.js";
 import Mail from "../models/Mail.js";
+import slugify from "slugify";
 
 const router = express.Router();
 
@@ -575,6 +576,42 @@ router.get("/api/feature-showcase", async (req, res) => {
   } catch (error) {
     console.error("Error fetching feature showcase:", error);
     res.status(500).json({ message: "Error fetching feature showcase", error: error.message });
+  }
+});
+
+// Save a new journal (for compatibility with old frontend)
+router.post("/saveJournal", async (req, res) => {
+  try {
+    const { userId, title, content, tags, collections, theme, isPublic, authorName, thumbnail, category } = req.body;
+    if (!userId || !title || !content || !tags || !collections || !category) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+    // Generate a unique slug
+    let baseSlug = slugify(title, { lower: true, strict: true });
+    let slug = baseSlug;
+    let count = 1;
+    const Journal = (await import("../models/Journal.js")).default;
+    while (await Journal.findOne({ slug })) {
+      slug = `${baseSlug}-${count++}`;
+    }
+    const newJournal = new Journal({
+      userId,
+      title,
+      slug,
+      content,
+      tags,
+      collections,
+      theme,
+      isPublic,
+      authorName: isPublic ? authorName : undefined,
+      thumbnail,
+      category,
+    });
+    await newJournal.save();
+    res.status(201).json({ message: "Journal created successfully!", journal: newJournal });
+  } catch (error) {
+    console.error("Error saving journal:", error);
+    res.status(500).json({ message: "Error saving journal", error: error.message });
   }
 });
 

@@ -126,6 +126,7 @@ const isFirstLoginOfWeek = (lastVisited) => {
 };
 
 const getRandomTemplate = (templates) => {
+  if (!Array.isArray(templates) || templates.length === 0) return null;
   return templates[Math.floor(Math.random() * templates.length)];
 };
 
@@ -147,6 +148,9 @@ function getWeekNumber(date) {
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required." });
+    }
 
     // Validate user
     const user = await User.findOne({ email });
@@ -277,7 +281,6 @@ router.post("/login", async (req, res) => {
             } else if (["Happy", "Grateful", "Excited"].includes(dominantMood)) {
                moodCategory = "positive";
             }
-            
             const template = getRandomTemplate(mailTemplates.moods[moodCategory]);
             if (template) {
                 const mail = {
@@ -340,32 +343,34 @@ router.post("/login", async (req, res) => {
             : "night";
 
         const template = getRandomTemplate(mailTemplates.weeklySummary);
-        const randomPrompt = getRandomPrompt();
-        const publicCount = weeklyEntries.filter(e => e.isPublic).length;
-        const privateCount = weeklyEntries.length - publicCount;
-        const currentStreak = user.currentStreak || 0;
-        const totalEntries = await Journal.countDocuments({ userId: user._id });
-        const content = template.content
-          .replace("{entryCount}", weeklyEntries.length.toString())
-          .replace("{publicCount}", publicCount.toString())
-          .replace("{privateCount}", privateCount.toString())
-          .replace("{mostFrequentMood}", mostFrequentMood)
-          .replace("{preferredTime}", timeLabel)
-          .replace("{randomPrompt}", randomPrompt)
-          .replace("{currentStreak}", currentStreak.toString())
-          .replace("{totalEntries}", totalEntries.toString());
-        addMail({
-          sender: template.sender,
-          title: template.title,
-          content: content,
-          recipients: [{ userId: user._id, read: false }],
-          mailType: "reward",
-          rewardAmount: template.rewardAmount,
-          metadata: { milestone: 0, specialReward: null },
-          date: new Date(),
-          themeId: user.activeMailTheme,
-        });
-        user.lastWeeklySummarySent = now;
+        if (template) {
+          const randomPrompt = getRandomPrompt();
+          const publicCount = weeklyEntries.filter(e => e.isPublic).length;
+          const privateCount = weeklyEntries.length - publicCount;
+          const currentStreak = user.currentStreak || 0;
+          const totalEntries = await Journal.countDocuments({ userId: user._id });
+          const content = template.content
+            .replace("{entryCount}", weeklyEntries.length.toString())
+            .replace("{publicCount}", publicCount.toString())
+            .replace("{privateCount}", privateCount.toString())
+            .replace("{mostFrequentMood}", mostFrequentMood)
+            .replace("{preferredTime}", timeLabel)
+            .replace("{randomPrompt}", randomPrompt)
+            .replace("{currentStreak}", currentStreak.toString())
+            .replace("{totalEntries}", totalEntries.toString());
+          addMail({
+            sender: template.sender,
+            title: template.title,
+            content: content,
+            recipients: [{ userId: user._id, read: false }],
+            mailType: "reward",
+            rewardAmount: template.rewardAmount,
+            metadata: { milestone: 0, specialReward: null },
+            date: new Date(),
+            themeId: user.activeMailTheme,
+          });
+          user.lastWeeklySummarySent = now;
+        }
       }
     }
 
