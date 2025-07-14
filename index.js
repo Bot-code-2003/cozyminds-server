@@ -76,7 +76,8 @@ app.use("/", feedbackRoutes);
 
 // Connect to MongoDB and start the server
 // const mongoURL = "mongodb://localhost:27017/CozyMind";
-const mongoURL =ds.yth43.mongodb.net/?retryWrites=true&w=majority&appName=cozyminds";
+const mongoURL =
+  "mongodb+srv://madisettydharmadeep:cozyminds@cozyminds.yth43.mongodb.net/?retryWrites=true&w=majority&appName=cozyminds";
 
 mongoose
   .connect(mongoURL)
@@ -90,5 +91,3 @@ mongoose
 // export const handler = serverless(app);
 
 export default app;
-
-  "mongodb+srv://madisettydharmadeep:cozyminds@cozymin
