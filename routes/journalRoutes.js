@@ -582,7 +582,7 @@ router.get("/api/feature-showcase", async (req, res) => {
 // Save a new journal (for compatibility with old frontend)
 router.post("/saveJournal", async (req, res) => {
   try {
-    const { userId, title, content, tags, collections, theme, isPublic, authorName, thumbnail, category } = req.body;
+    const { userId, title, content, tags, collections, theme, isPublic, authorName, thumbnail, category, metaDescription } = req.body;
     if (!userId || !title || !content || !tags || !collections || !category) {
       return res.status(400).json({ message: "Missing required fields" });
     }
@@ -606,6 +606,7 @@ router.post("/saveJournal", async (req, res) => {
       authorName: isPublic ? authorName : undefined,
       thumbnail,
       category,
+      metaDescription: category === 'story' && metaDescription ? metaDescription : undefined,
     });
     await newJournal.save();
     res.status(201).json({ message: "Journal created successfully!", journal: newJournal });

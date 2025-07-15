@@ -93,6 +93,12 @@ const journalSchema = new mongoose.Schema(
       default: "journal",
       required: true,
     },
+    // Optional meta description for stories (SEO)
+    metaDescription: {
+      type: String,
+      default: null,
+      maxlength: 200,
+    },
   },
   {
     timestamps: true,
