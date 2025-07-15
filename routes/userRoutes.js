@@ -281,23 +281,28 @@ router.post("/login", async (req, res) => {
             } else if (["Happy", "Grateful", "Excited"].includes(dominantMood)) {
                moodCategory = "positive";
             }
-            const template = getRandomTemplate(mailTemplates.moods[moodCategory]);
-            if (template) {
-                const mail = {
-                    sender: template.sender,
-                    title: template.title,
-                    content: template.content,
-                    recipients: [{ userId: user._id, read: false }],
-                    mailType: 'mood',
-                    rewardAmount: template.rewardAmount,
-                    metadata: { mood: dominantMood },
-                    date: new Date(),
-                    themeId: user.activeMailTheme
-                };
-                if (template.rewardAmount) {
-                    mail.recipients[0].rewardClaimed = false;
-                }
-                addMail(mail);
+            // Fix: Only try to get template if moods[moodCategory] exists
+            if (mailTemplates.moods && mailTemplates.moods[moodCategory]) {
+              const template = getRandomTemplate(mailTemplates.moods[moodCategory]);
+              if (template) {
+                  const mail = {
+                      sender: template.sender,
+                      title: template.title,
+                      content: template.content,
+                      recipients: [{ userId: user._id, read: false }],
+                      mailType: 'mood',
+                      rewardAmount: template.rewardAmount,
+                      metadata: { mood: dominantMood },
+                      date: new Date(),
+                      themeId: user.activeMailTheme
+                  };
+                  if (template.rewardAmount) {
+                      mail.recipients[0].rewardClaimed = false;
+                  }
+                  addMail(mail);
+              }
+            } else {
+              console.warn(`No mail template for mood category: ${moodCategory}`);
             }
         }
       }
