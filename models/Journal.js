@@ -97,7 +97,6 @@ const journalSchema = new mongoose.Schema(
     metaDescription: {
       type: String,
       default: null,
-      maxlength: 200,
     },
   },
   {
