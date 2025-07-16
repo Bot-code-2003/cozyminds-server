@@ -74,31 +74,7 @@ router.post("/users/grant-coins", async (req, res) => {
 
 // Configuration for email automation
 const EMAIL_CONFIG = {
-  MAX_EMAILS_PER_LOGIN: 2,
-  STREAK_MILESTONES: {
-    7: { reward: 60, key: "7day" },
-    14: { reward: 80, key: "14day" },
-    30: { reward: 150, key: "30day" },
-    100: { reward: 300, key: "100day" },
-    200: { reward: 450, key: "200day" },
-    300: { reward: 600, key: "300day" },
-    365: { reward: 1200, key: "365day", special: "Journaling Legend Theme" },
-  },
-  ENTRY_MILESTONES: {
-    1: { reward: 50, key: "1entry" },
-    5: { reward: 60, key: "5entries" },
-    10: { reward: 80, key: "10entries" },
-    20: { reward: 100, key: "20entries" },
-    30: { reward: 120, key: "30entries" },
-    50: { reward: 200, key: "50entries" },
-    100: { reward: 300, key: "100entries" },
-    200: { reward: 450, key: "200entries" },
-    300: { reward: 600, key: "300entries" },
-    365: { reward: 1200, key: "365entries", special: "Master Journaler Badge" },
-  },
-  MOOD_CHECK_MIN_ENTRIES: 3,
-  MOOD_EMAIL_COOLDOWN_DAYS: 10,
-  WEEKLY_SUMMARY_COOLDOWN_DAYS: 7,
+  MAX_EMAILS_PER_LOGIN: 2
 };
 
 // Prompts for weeklySummary
@@ -106,7 +82,7 @@ const WEEKLY_PROMPTS = [
   "What moment made you smile this week? 😊",
   "What's something you're grateful for right now? 🙏",
   "What small win deserves celebration? 🎉",
-  "What inspired you recently? ✨",
+  "What's inspired you recently? ✨",
   "What's a goal for next week? 🚀",
 ];
 
@@ -160,280 +136,35 @@ router.post("/login", async (req, res) => {
     // Initialize fields if missing
     user.coins = user.coins ?? 0;
     user.inventory = user.inventory ?? [];
-    user.currentStreak = user.currentStreak ?? 0;
-    user.completedStreakMilestones = user.completedStreakMilestones ?? [];
-    user.completedEntryMilestones = user.completedEntryMilestones ?? [];
     user.activeMailTheme = user.activeMailTheme ?? "default";
     user.lastVisited = user.lastVisited ?? new Date();
-    if (!user.storyProgress || typeof user.storyProgress !== 'object' || Array.isArray(user.storyProgress)) {
-      user.storyProgress = {
-        storyName: null,
-        currentChapter: null,
-        lastSent: null,
-        isComplete: false,
-      };
-    }
 
     const now = new Date();
     const lastVisited = new Date(user.lastVisited);
     let coinsEarned = 0;
 
-    // Update streak and daily login reward
+    // Daily login reward (keep if you want daily coins)
     if (!lastVisited || lastVisited.toDateString() !== now.toDateString()) {
-      const yesterday = new Date(now - 24 * 60 * 60 * 1000);
-      user.currentStreak = lastVisited && lastVisited.toDateString() === yesterday.toDateString()
-        ? user.currentStreak + 1
-        : 1;
-      user.longestStreak = Math.max(user.currentStreak, user.longestStreak || 0);
       user.coins += 10;
       coinsEarned += 10;
       user.lastVisited = now;
     }
 
-    // Email automation
-    const emailsToSend = [];
-    const addMail = (mail) => {
-      if (emailsToSend.length < EMAIL_CONFIG.MAX_EMAILS_PER_LOGIN) {
-        emailsToSend.push(mail);
-      }
-    };
+    // Notification logic (likeNotification, commentNotification) can go here if needed
+    // Example:
+    // const emailsToSend = [];
+    // const addMail = (mail) => {
+    //   if (emailsToSend.length < EMAIL_CONFIG.MAX_EMAILS_PER_LOGIN) {
+    //     emailsToSend.push(mail);
+    //   }
+    // };
 
-    // 1. Streak Milestone Emails
-    const streakMilestone = Object.entries(EMAIL_CONFIG.STREAK_MILESTONES).find(
-      ([days]) => parseInt(days) === user.currentStreak &&
-        !user.completedStreakMilestones.includes(parseInt(days))
-    );
-    if (streakMilestone) {
-      const [days, { key, reward, special }] = streakMilestone;
-      const template = getRandomTemplate(mailTemplates.streakMilestone[key]);
-      if (template) {
-        const mail = {
-          sender: template.sender,
-          title: template.title,
-          content: template.content,
-          recipients: [{ userId: user._id, read: false }],
-          mailType: "reward",
-          rewardAmount: template.rewardAmount,
-          metadata: { milestone: parseInt(days), specialReward: special },
-          date: new Date(),
-          themeId: user.activeMailTheme,
-        };
-        if (template.rewardAmount) {
-          mail.recipients[0].rewardClaimed = false;
-        }
-        addMail(mail);
-        user.completedStreakMilestones.push(parseInt(days));
-      }
-    }
-
-    // 2. Entry Milestone Email
-    const entryCount = await Journal.countDocuments({ userId: user._id });
-    const entryMilestone = Object.entries(EMAIL_CONFIG.ENTRY_MILESTONES).find(
-      ([count]) => parseInt(count) <= entryCount &&
-        !user.completedEntryMilestones.includes(parseInt(count))
-    );
-    if (entryMilestone) {
-      const [count, { key, reward, special }] = entryMilestone;
-      const template = getRandomTemplate(mailTemplates.entryMilestone[key]);
-      if (template) {
-        const mail = {
-          sender: template.sender,
-          title: template.title,
-          content: template.content,
-          recipients: [{ userId: user._id, read: false }],
-          mailType: "reward",
-          rewardAmount: template.rewardAmount,
-          metadata: { milestone: parseInt(count), specialReward: special },
-          date: new Date(),
-          themeId: user.activeMailTheme,
-        };
-        if (template.rewardAmount) {
-          mail.recipients[0].rewardClaimed = false;
-        }
-        addMail(mail);
-        user.completedEntryMilestones.push(parseInt(count));
-      }
-    }
-
-    // 3. Mood-Based Email
-    const recentMoodMail = await Mail.findOne({
-      mailType: "mood",
-      "recipients.userId": user._id,
-      date: { $gte: getDateDaysAgo(EMAIL_CONFIG.MOOD_EMAIL_COOLDOWN_DAYS) },
-    });
-    if (!recentMoodMail) {
-      const recentEntries = await Journal.find({ userId: user._id })
-        .sort({ date: -1 })
-        .limit(5);
-      if (recentEntries.length >= EMAIL_CONFIG.MOOD_CHECK_MIN_ENTRIES) {
-        const moodCounts = recentEntries.reduce((acc, entry) => {
-          acc[entry.mood] = (acc[entry.mood] || 0) + 1;
-          return acc;
-        }, {});
-        const dominantMood = Object.entries(moodCounts).reduce(
-          (max, [mood, count]) => count > max.count ? { mood, count } : max,
-          { mood: null, count: 0 }
-        ).mood;
-        if (dominantMood) {
-            let moodCategory = "mixed";
-            if (["Sad", "Anxious", "Angry"].includes(dominantMood)) {
-               moodCategory = "negative";
-            } else if (["Happy", "Grateful", "Excited"].includes(dominantMood)) {
-               moodCategory = "positive";
-            }
-            // Fix: Only try to get template if moods[moodCategory] exists
-            if (mailTemplates.moods && mailTemplates.moods[moodCategory]) {
-              const template = getRandomTemplate(mailTemplates.moods[moodCategory]);
-              if (template) {
-                  const mail = {
-                      sender: template.sender,
-                      title: template.title,
-                      content: template.content,
-                      recipients: [{ userId: user._id, read: false }],
-                      mailType: 'mood',
-                      rewardAmount: template.rewardAmount,
-                      metadata: { mood: dominantMood },
-                      date: new Date(),
-                      themeId: user.activeMailTheme
-                  };
-                  if (template.rewardAmount) {
-                      mail.recipients[0].rewardClaimed = false;
-                  }
-                  addMail(mail);
-              }
-            } else {
-              console.warn(`No mail template for mood category: ${moodCategory}`);
-            }
-        }
-      }
-    }
-
-    // 4. Weekly Summary Email
-    const isMonday = now.getDay() === 1;
-    const lastSummary = user.lastWeeklySummarySent ? new Date(user.lastWeeklySummarySent) : null;
-    const lastSummaryWeek = lastSummary ? lastSummary.getFullYear() + '-' + getWeekNumber(lastSummary) : null;
-    const thisWeek = now.getFullYear() + '-' + getWeekNumber(now);
-    const shouldSendSummary = isMonday && lastSummaryWeek !== thisWeek;
-    if (shouldSendSummary) {
-      const oneWeekAgo = getDateDaysAgo(7);
-      const weeklyEntries = await Journal.find({
-        userId: user._id,
-        date: { $gte: oneWeekAgo },
-      });
-      if (weeklyEntries.length > 0) {
-        const moodCounts = weeklyEntries.reduce((acc, entry) => {
-          acc[entry.mood] = (acc[entry.mood] || 0) + 1;
-          return acc;
-        }, {});
-        const mostFrequentMood = Object.entries(moodCounts).reduce(
-          (max, [mood, count]) => count > max.count ? { mood, count } : max,
-          { mood: "Neutral", count: 0 }
-        ).mood;
-        const preferredTime = weeklyEntries.reduce((acc, entry) => {
-          const hour = new Date(entry.date).getHours();
-          acc[hour] = (acc[hour] || 0) + 1;
-          return acc;
-        }, {});
-        const maxHour = Object.entries(preferredTime).reduce(
-          (max, [hour, count]) => count > max.count ? { hour: parseInt(hour), count } : max,
-          { hour: 0, count: 0 }
-        ).hour;
-        const timeLabel =
-          maxHour >= 5 && maxHour < 12
-            ? "morning"
-            : maxHour >= 12 && maxHour < 17
-            ? "afternoon"
-            : maxHour >= 17 && maxHour < 21
-            ? "evening"
-            : "night";
-
-        const template = getRandomTemplate(mailTemplates.weeklySummary);
-        if (template) {
-          const randomPrompt = getRandomPrompt();
-          const publicCount = weeklyEntries.filter(e => e.isPublic).length;
-          const privateCount = weeklyEntries.length - publicCount;
-          const currentStreak = user.currentStreak || 0;
-          const totalEntries = await Journal.countDocuments({ userId: user._id });
-          const content = template.content
-            .replace("{entryCount}", weeklyEntries.length.toString())
-            .replace("{publicCount}", publicCount.toString())
-            .replace("{privateCount}", privateCount.toString())
-            .replace("{mostFrequentMood}", mostFrequentMood)
-            .replace("{preferredTime}", timeLabel)
-            .replace("{randomPrompt}", randomPrompt)
-            .replace("{currentStreak}", currentStreak.toString())
-            .replace("{totalEntries}", totalEntries.toString());
-          addMail({
-            sender: template.sender,
-            title: template.title,
-            content: content,
-            recipients: [{ userId: user._id, read: false }],
-            mailType: "reward",
-            rewardAmount: template.rewardAmount,
-            metadata: { milestone: 0, specialReward: null },
-            date: new Date(),
-            themeId: user.activeMailTheme,
-          });
-          user.lastWeeklySummarySent = now;
-        }
-      }
-    }
-
-    // 5. Story Progression Email
-    const { storyName, currentChapter, lastSent, isComplete } =
-      user.storyProgress;
-    if (storyName && storyData[storyName]) {
-      const story = storyData[storyName];
-      const nextChapterIndex = currentChapter
-        ? story.chapters.findIndex((c) => c.id === currentChapter) + 1
-        : 0;
-      if (nextChapterIndex < story.chapters.length) {
-        const nextChapter = story.chapters[nextChapterIndex];
-        if (
-          !lastSent ||
-          new Date(lastSent) <= new Date(now - 24 * 60 * 60 * 1000)
-        ) {
-          const template = getRandomTemplate(
-            mailTemplates.story[nextChapter.templateKey]
-          );
-          if (template) {
-            const mail = {
-              sender: template.sender,
-              title: template.title,
-              content: template.content,
-              recipients: [{ userId: user._id, read: false }],
-              mailType: "story",
-              rewardAmount: template.rewardAmount,
-              metadata: { story: storyName, chapter: nextChapter.id },
-              date: new Date(),
-              themeId: user.activeMailTheme,
-            };
-            if (template.rewardAmount) {
-              mail.recipients[0].rewardClaimed = false;
-            }
-            addMail(mail);
-            user.storyProgress.currentChapter = nextChapter.id;
-            user.storyProgress.lastSent = now;
-          }
-        }
-      } else {
-        if (!isComplete) {
-          user.storyProgress.isComplete = true;
-        }
-      }
-    }
-
-    // Save user updates and emails
     await user.save();
-    if (emailsToSend.length > 0) {
-      await Mail.insertMany(emailsToSend);
-    }
-
     res.status(200).json({
-      status: 200,
-      message: "Login successful!",
-      user: user,
-      coinsEarned: coinsEarned,
+      message: "Login successful.",
+      user,
+      coinsEarned,
+      // emailsToSend
     });
   } catch (error) {
     console.error("Login error:", error);
