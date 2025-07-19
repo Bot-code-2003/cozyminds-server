@@ -36,7 +36,8 @@ router.get("/profile/:anonymousName", async (req, res) => {
       })
         .sort({ date: -1 })
         .limit(20)
-        .select("title content authorName date likeCount likes theme mood tags slug")
+        .populate("userId", "anonymousName profileTheme") // 🟢 add this
+        .select("title content userId authorName date likeCount likes theme mood tags slug")
         .lean();
 
       // Get total public journal count
@@ -53,74 +54,6 @@ router.get("/profile/:anonymousName", async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching public profile:", error);
-    res.status(500).json({ message: "Error fetching profile", error: error.message });
-  }
-});
-
-// Get public profile by userId
-router.get("/profile/id/:userId", async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const { withJournals } = req.query;
-
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ message: "Invalid user ID format" });
-    }
-
-    const user = await User.findById(userId)
-      .select("anonymousName currentStreak longestStreak subscriberCount bio profileTheme createdAt")
-      .lean();
-
-    if (!user) {
-      return res.status(404).json({ message: "Profile not found" });
-    }
-
-    let journals = [];
-    let totalJournals = 0;
-
-    if (withJournals !== 'false') {
-      // Get public journals by this user, with author info and comment count
-      const rawJournals = await Journal.find({ 
-        userId: user._id, 
-        isPublic: true 
-      })
-        .sort({ date: -1 })
-        .limit(20)
-        .populate('userId', 'anonymousName profileTheme')
-        .lean();
-
-      // For each journal, add commentCount and author object
-      journals = await Promise.all(rawJournals.map(async (journal) => {
-        const commentCount = await (await import('../models/comment.js')).default.countDocuments({ journalId: journal._id });
-        let author = null;
-        if (journal.userId) {
-          author = {
-            userId: journal.userId._id,
-            anonymousName: journal.userId.anonymousName,
-            profileTheme: journal.userId.profileTheme,
-          };
-        }
-        return {
-          ...journal,
-          commentCount,
-          author,
-        };
-      }));
-
-      // Get total public journal count
-      totalJournals = await Journal.countDocuments({ 
-        userId: user._id, 
-        isPublic: true 
-      });
-    }
-
-    res.json({
-      profile: user,
-      journals,
-      totalJournals
-    });
-  } catch (error) {
-    console.error("Error fetching public profile by userId:", error);
     res.status(500).json({ message: "Error fetching profile", error: error.message });
   }
 });
