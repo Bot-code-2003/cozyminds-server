@@ -85,6 +85,52 @@ router.get("/journals/public", async (req, res) => {
   }
 });
 
+// Get top 3 liked public journals
+router.get("/journals/top-liked", async (req, res) => {
+  try {
+    const journals = await Journal.find({ isPublic: true, category: "journal" })
+      .sort({ likeCount: -1, createdAt: -1 })
+      .limit(4)
+      .populate("userId", "anonymousName profileTheme")
+      .lean();
+    const journalsWithAuthor = journals.map(journal => ({
+      ...journal,
+      author: journal.userId ? {
+        userId: journal.userId._id,
+        anonymousName: journal.userId.anonymousName,
+        profileTheme: journal.userId.profileTheme,
+      } : null,
+    }));
+    res.json({ journals: journalsWithAuthor });
+  } catch (error) {
+    console.error("Error fetching top liked journals:", error);
+    res.status(500).json({ message: "Error fetching top liked journals", error: error.message });
+  }
+});
+
+// Get top 3 liked public stories
+router.get("/stories/top-liked", async (req, res) => {
+  try {
+    const stories = await Journal.find({ isPublic: true, category: "story" })
+      .sort({ likeCount: -1, createdAt: -1 })
+      .limit(4)
+      .populate("userId", "anonymousName profileTheme")
+      .lean();
+    const storiesWithAuthor = stories.map(story => ({
+      ...story,
+      author: story.userId ? {
+        userId: story.userId._id,
+        anonymousName: story.userId.anonymousName,
+        profileTheme: story.userId.profileTheme,
+      } : null,
+    }));
+    res.json({ stories: storiesWithAuthor });
+  } catch (error) {
+    console.error("Error fetching top liked stories:", error);
+    res.status(500).json({ message: "Error fetching top liked stories", error: error.message });
+  }
+});
+
 // Get all journals for a user
 router.get("/journals/:userId", async (req, res) => {
   try {
@@ -554,28 +600,6 @@ router.get("/recommendations", async (req, res) => {
   } catch (error) {
     console.error("Error fetching recommendations:", error);
     res.status(500).json({ message: "Error fetching recommendations", error: error.message });
-  }
-});
-
-// Feature Showcase: Top 3 latest public journals and stories
-router.get("/api/feature-showcase", async (req, res) => {
-  try {
-    const [journals, stories] = await Promise.all([
-      Journal.find({ isPublic: true, category: "journal" })
-        .sort({ createdAt: -1 })
-        .limit(3)
-        .select("title slug authorName createdAt likeCount commentCount thumbnail")
-        .lean(),
-      Journal.find({ isPublic: true, category: "story" })
-        .sort({ createdAt: -1 })
-        .limit(3)
-        .select("title slug authorName createdAt likeCount commentCount thumbnail")
-        .lean(),
-    ]);
-    res.json({ journals, stories });
-  } catch (error) {
-    console.error("Error fetching feature showcase:", error);
-    res.status(500).json({ message: "Error fetching feature showcase", error: error.message });
   }
 });
 
