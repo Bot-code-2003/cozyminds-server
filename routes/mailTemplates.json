@@ -1,4 +1,11 @@
 {
+  "welcome": [
+    {
+      "sender": "Starlit Journals Team",
+      "title": "Welcome to Starlit Journals ✨",
+      "content": "# Welcome aboard!\n\nYour space for stories, thoughts, and reflections starts here. We're glad you're here!"
+    }
+  ],
   "likeNotification": [
     {
       "sender": "Starlit Journals Team",

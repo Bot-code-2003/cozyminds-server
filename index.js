@@ -16,9 +16,8 @@ const app = express();
 const allowedOrigins = [
   "http://localhost:5173",
   "https://starlitjournals.com",
-  "https://www.starlitjournals.com"
+  "https://www.starlitjournals.com",
 ];
-
 
 // CORS configuration
 app.use(
@@ -79,14 +78,12 @@ app.use("/", feedbackRoutes);
 const mongoURL =
   "mongodb+srv://madisettydharmadeep:cozyminds@cozyminds.yth43.mongodb.net/?retryWrites=true&w=majority&appName=cozyminds";
 
-mongoose
-  .connect(mongoURL)
-  .then(() => {
-    app.listen(3000, () => {
-      console.log("Server is running on port 3000");
-    });
-  })
-  // .catch((error) => console.log("MongoDB connection error:", error));
+mongoose.connect(mongoURL).then(() => {
+  app.listen(3000, () => {
+    console.log("Server is running on port 3000");
+  });
+});
+// .catch((error) => console.log("MongoDB connection error:", error));
 
 // export const handler = serverless(app);
 

@@ -32,7 +32,9 @@ router.get("/users", async (req, res) => {
       };
     }
 
-    const users = await User.find(query).select("nickname email coins createdAt").sort({ createdAt: -1 });
+    const users = await User.find(query)
+      .select("nickname email coins createdAt")
+      .sort({ createdAt: -1 });
     res.status(200).json(users);
   } catch (error) {
     console.error("Error fetching users:", error);
@@ -46,7 +48,9 @@ router.post("/users/grant-coins", async (req, res) => {
     const { userId, amount } = req.body;
 
     if (!userId || !amount) {
-      return res.status(400).json({ message: "User ID and amount are required." });
+      return res
+        .status(400)
+        .json({ message: "User ID and amount are required." });
     }
 
     const amountNum = parseInt(amount, 10);
@@ -74,7 +78,7 @@ router.post("/users/grant-coins", async (req, res) => {
 
 // Configuration for email automation
 const EMAIL_CONFIG = {
-  MAX_EMAILS_PER_LOGIN: 2
+  MAX_EMAILS_PER_LOGIN: 2,
 };
 
 // Prompts for weeklySummary
@@ -112,11 +116,13 @@ const getRandomPrompt = () => {
 
 // Helper to get ISO week number
 function getWeekNumber(date) {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const d = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+  );
   const dayNum = d.getUTCDay() || 7;
   d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
-  const weekNum = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNum = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
   return weekNum;
 }
 
@@ -125,13 +131,16 @@ router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
-      return res.status(400).json({ message: "Email and password are required." });
+      return res
+        .status(400)
+        .json({ message: "Email and password are required." });
     }
 
     // Validate user
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ message: "User not found." });
-    if (user.password !== password) return res.status(401).json({ message: "Incorrect password." });
+    if (user.password !== password)
+      return res.status(401).json({ message: "Incorrect password." });
 
     // Initialize fields if missing
     user.coins = user.coins ?? 0;
@@ -174,9 +183,22 @@ router.post("/login", async (req, res) => {
 
 // Add helper to pick deterministic avatar style
 const avatarStyles = [
-  'avataaars', 'bottts', 'funEmoji', 'miniavs', 'croodles', 'micah', 'pixelArt',
-  'adventurer', 'bigEars', 'bigSmile', 'lorelei', 'openPeeps', 'personas',
-  'rings', 'shapes', 'thumbs'
+  "avataaars",
+  "bottts",
+  "funEmoji",
+  "miniavs",
+  "croodles",
+  "micah",
+  "pixelArt",
+  "adventurer",
+  "bigEars",
+  "bigSmile",
+  "lorelei",
+  "openPeeps",
+  "personas",
+  "rings",
+  "shapes",
+  "thumbs",
 ];
 function getDeterministicAvatarStyle(seed) {
   if (!seed) return avatarStyles[0];
@@ -188,16 +210,22 @@ function getDeterministicAvatarStyle(seed) {
   return avatarStyles[Math.abs(hash) % avatarStyles.length];
 }
 
-// Signup Route
 router.post("/signup", async (req, res) => {
   try {
-    const { nickname, email, password, age, gender, subscribe, agreedToTerms } = req.body;
-    const existingUser = await User.findOne({ email });
-    if (existingUser) return res.status(400).json({ message: "User already exists." });
+    const { nickname, email, password, age, gender, subscribe, agreedToTerms } =
+      req.body;
 
+    // Check for existing user
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists." });
+    }
+
+    // Generate anonymous details
     const anonymousName = generateAnonymousName(nickname);
     const avatarStyle = getDeterministicAvatarStyle(anonymousName);
 
+    // Create new user
     const user = new User({
       nickname,
       email,
@@ -207,40 +235,34 @@ router.post("/signup", async (req, res) => {
       subscribe,
       agreedToTerms,
       coins: 50,
-      anonymousName: anonymousName,
+      anonymousName,
       lastVisited: new Date(),
       profileTheme: { avatarStyle },
     });
+
     await user.save();
 
-    // Send welcome and reward emails
+    // Send welcome mail only
     const welcomeTemplate = getRandomTemplate(mailTemplates.welcome);
-    const rewardTemplate = getRandomTemplate(mailTemplates.reward);
-    
-    const emailsToSend = [
-      {
-        sender: welcomeTemplate.sender,
-        title: welcomeTemplate.title,
-        content: welcomeTemplate.content,
-        recipients: [{ userId: user._id, read: false }],
-        mailType: "reward",
-        rewardAmount: welcomeTemplate.rewardAmount,
-        date: new Date(),
-        themeId: user.activeMailTheme,
-      },
-      {
-        sender: rewardTemplate.sender,
-        title: rewardTemplate.title,
-        content: rewardTemplate.content,
-        recipients: [{ userId: user._id, read: false, rewardClaimed: false }],
-        mailType: "reward",
-        rewardAmount: rewardTemplate.rewardAmount,
-        date: new Date(),
-        themeId: user.activeMailTheme,
-      },
-    ];
-    
-    await Mail.insertMany(emailsToSend);
+
+    if (!welcomeTemplate) {
+      return res.status(500).json({
+        message: "Server Error",
+        error: "Welcome mail template not found.",
+      });
+    }
+
+    const welcomeMail = {
+      sender: welcomeTemplate.sender,
+      title: welcomeTemplate.title,
+      content: welcomeTemplate.content,
+      recipients: [{ userId: user._id, read: false }],
+      mailType: "welcome",
+      date: new Date(),
+      themeId: user.activeMailTheme,
+    };
+
+    await Mail.insertMany([welcomeMail]);
 
     res.status(201).json({ message: "User created successfully!", user });
   } catch (error) {
@@ -282,42 +304,165 @@ function applyMailTheme(content, themeId) {
 
 // Anonymous name generator
 const adjectives = [
-  "Whispering", "Dancing", "Soaring", "Gentle", "Mystic",
-  "Radiant", "Serene", "Vibrant", "Cosmic", "Ethereal",
-  "Luminous", "Tranquil", "Enchanted", "Harmonious", "Celestial",
-  "Dreamy", "Melodic", "Peaceful", "Magical", "Stellar",
-  "Wandering", "Floating", "Glowing", "Twinkling", "Breezy",
-  "Sparkling", "Misty", "Shimmering", "Drifting", "Gliding",
-  "Swaying", "Murmuring", "Rustling", "Swishing", "Sighing",
-  "Bubbling", "Gurgling", "Rippling", "Splashing", "Trickling",
-  "Humming", "Buzzing", "Chirping", "Singing", "Whistling",
+  "Whispering",
+  "Dancing",
+  "Soaring",
+  "Gentle",
+  "Mystic",
+  "Radiant",
+  "Serene",
+  "Vibrant",
+  "Cosmic",
+  "Ethereal",
+  "Luminous",
+  "Tranquil",
+  "Enchanted",
+  "Harmonious",
+  "Celestial",
+  "Dreamy",
+  "Melodic",
+  "Peaceful",
+  "Magical",
+  "Stellar",
+  "Wandering",
+  "Floating",
+  "Glowing",
+  "Twinkling",
+  "Breezy",
+  "Sparkling",
+  "Misty",
+  "Shimmering",
+  "Drifting",
+  "Gliding",
+  "Swaying",
+  "Murmuring",
+  "Rustling",
+  "Swishing",
+  "Sighing",
+  "Bubbling",
+  "Gurgling",
+  "Rippling",
+  "Splashing",
+  "Trickling",
+  "Humming",
+  "Buzzing",
+  "Chirping",
+  "Singing",
+  "Whistling",
   // New additions
-  "Brave", "Curious", "Playful", "Cheerful", "Bold",
-  "Clever", "Kind", "Hopeful", "Joyful", "Radiant",
-  "Sunny", "Blissful", "Dazzling", "Gallant", "Noble",
-  "Gentle", "Lively", "Merry", "Patient", "Resilient",
-  "Wise", "Zesty", "Charming", "Daring", "Inventive",
-  "Loyal", "Mirthful", "Optimistic", "Resourceful", "Valiant"
+  "Brave",
+  "Curious",
+  "Playful",
+  "Cheerful",
+  "Bold",
+  "Clever",
+  "Kind",
+  "Hopeful",
+  "Joyful",
+  "Radiant",
+  "Sunny",
+  "Blissful",
+  "Dazzling",
+  "Gallant",
+  "Noble",
+  "Gentle",
+  "Lively",
+  "Merry",
+  "Patient",
+  "Resilient",
+  "Wise",
+  "Zesty",
+  "Charming",
+  "Daring",
+  "Inventive",
+  "Loyal",
+  "Mirthful",
+  "Optimistic",
+  "Resourceful",
+  "Valiant",
 ];
 
 const nouns = [
-  "Dreamer", "Wanderer", "Explorer", "Seeker", "Traveler",
-  "Observer", "Listener", "Thinker", "Creator", "Artist",
-  "Poet", "Writer", "Sage", "Mystic", "Visionary",
-  "Spirit", "Soul", "Heart", "Mind", "Star",
-  "Moon", "Sun", "Cloud", "Wind", "River",
-  "Ocean", "Mountain", "Forest", "Garden", "Flower",
-  "Tree", "Bird", "Butterfly", "Dragonfly", "Phoenix",
-  "Dragon", "Unicorn", "Pegasus", "Griffin", "Angel",
-  "Fairy", "Elf", "Dwarf", "Wizard", "Knight",
-  "Princess", "Prince", "Queen", "King",
+  "Dreamer",
+  "Wanderer",
+  "Explorer",
+  "Seeker",
+  "Traveler",
+  "Observer",
+  "Listener",
+  "Thinker",
+  "Creator",
+  "Artist",
+  "Poet",
+  "Writer",
+  "Sage",
+  "Mystic",
+  "Visionary",
+  "Spirit",
+  "Soul",
+  "Heart",
+  "Mind",
+  "Star",
+  "Moon",
+  "Sun",
+  "Cloud",
+  "Wind",
+  "River",
+  "Ocean",
+  "Mountain",
+  "Forest",
+  "Garden",
+  "Flower",
+  "Tree",
+  "Bird",
+  "Butterfly",
+  "Dragonfly",
+  "Phoenix",
+  "Dragon",
+  "Unicorn",
+  "Pegasus",
+  "Griffin",
+  "Angel",
+  "Fairy",
+  "Elf",
+  "Dwarf",
+  "Wizard",
+  "Knight",
+  "Princess",
+  "Prince",
+  "Queen",
+  "King",
   // New additions
-  "Scholar", "Guardian", "Healer", "Inventor", "Jester",
-  "Muse", "Oracle", "Paladin", "Ranger", "Scribe",
-  "Sculptor", "Sailor", "Captain", "Pilot", "Gardener",
-  "Chef", "Baker", "Composer", "Dancer", "Singer",
-  "Painter", "Magician", "Alchemist", "Merchant", "Scribe",
-  "Adventurer", "Champion", "Friend", "Guide", "Hero"
+  "Scholar",
+  "Guardian",
+  "Healer",
+  "Inventor",
+  "Jester",
+  "Muse",
+  "Oracle",
+  "Paladin",
+  "Ranger",
+  "Scribe",
+  "Sculptor",
+  "Sailor",
+  "Captain",
+  "Pilot",
+  "Gardener",
+  "Chef",
+  "Baker",
+  "Composer",
+  "Dancer",
+  "Singer",
+  "Painter",
+  "Magician",
+  "Alchemist",
+  "Merchant",
+  "Scribe",
+  "Adventurer",
+  "Champion",
+  "Friend",
+  "Guide",
+  "Hero",
 ];
 
 // simple consistent hash
@@ -341,7 +486,6 @@ function generateAnonymousName(nickname, password) {
 
   return `${adjectives[adjIndex]}${nouns[nounIndex]}${suffix}`;
 }
-
 
 // Get user data
 router.get("/user/:id", async (req, res) => {
@@ -420,7 +564,8 @@ router.put("/user/:id", async (req, res) => {
     if (coins !== undefined) updateData.coins = coins;
     if (inventory) updateData.inventory = inventory;
     if (lastVisited) updateData.lastVisited = lastVisited;
-    if (activeMailTheme !== undefined) updateData.activeMailTheme = activeMailTheme;
+    if (activeMailTheme !== undefined)
+      updateData.activeMailTheme = activeMailTheme;
     if (bio !== undefined) updateData.bio = bio;
     if (anonymousName !== undefined) updateData.anonymousName = anonymousName;
     if (storyProgress) updateData.storyProgress = storyProgress;
@@ -459,9 +604,7 @@ router.put("/user/:id/password", async (req, res) => {
 
     // Validate password (no minimum length)
     if (!newPassword) {
-      return res
-        .status(400)
-        .json({ message: "Password is required." });
+      return res.status(400).json({ message: "Password is required." });
     }
 
     // Find and update the user's password
@@ -578,7 +721,9 @@ router.post("/users/:userId/save-journal", async (req, res) => {
     }
     // Also add userId to the journal's saved array
     const Journal = (await import("../models/Journal.js")).default;
-    await Journal.findByIdAndUpdate(journalId, { $addToSet: { saved: userId } });
+    await Journal.findByIdAndUpdate(journalId, {
+      $addToSet: { saved: userId },
+    });
     res.json({ success: true });
   } catch (err) {
     console.error("Error saving journal:", err);
