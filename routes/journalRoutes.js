@@ -106,12 +106,10 @@ router.get("/journals/top-liked", async (req, res) => {
     res.json({ journals: journalsWithAuthor });
   } catch (error) {
     console.error("Error fetching top liked journals:", error);
-    res
-      .status(500)
-      .json({
-        message: "Error fetching top liked journals",
-        error: error.message,
-      });
+    res.status(500).json({
+      message: "Error fetching top liked journals",
+      error: error.message,
+    });
   }
 });
 
@@ -136,12 +134,10 @@ router.get("/stories/top-liked", async (req, res) => {
     res.json({ stories: storiesWithAuthor });
   } catch (error) {
     console.error("Error fetching top liked stories:", error);
-    res
-      .status(500)
-      .json({
-        message: "Error fetching top liked stories",
-        error: error.message,
-      });
+    res.status(500).json({
+      message: "Error fetching top liked stories",
+      error: error.message,
+    });
   }
 });
 
@@ -478,12 +474,10 @@ router.get("/trending", async (req, res) => {
     res.json({ journals: journalsWithAuthor });
   } catch (error) {
     console.error("Error fetching trending journals:", error);
-    res
-      .status(500)
-      .json({
-        message: "Error fetching trending journals",
-        error: error.message,
-      });
+    res.status(500).json({
+      message: "Error fetching trending journals",
+      error: error.message,
+    });
   }
 });
 
@@ -572,86 +566,100 @@ router.get("/active-discussions", async (req, res) => {
     res.json({ journals });
   } catch (error) {
     console.error("Error fetching active discussions:", error);
-    res
-      .status(500)
-      .json({
-        message: "Error fetching active discussions",
-        error: error.message,
-      });
+    res.status(500).json({
+      message: "Error fetching active discussions",
+      error: error.message,
+    });
   }
 });
 
-// Get 5 recommended posts by category (optionally exclude a journal by id)
 router.get("/recommendations", async (req, res) => {
   try {
-    const { category, exclude } = req.query;
-    if (!category || !["journal", "story"].includes(category)) {
-      return res
-        .status(400)
-        .json({
-          message: "Category is required and must be 'journal' or 'story'",
-        });
+    const { entryId } = req.query;
+    const limit = 9;
+
+    if (!entryId || entryId.length !== 24) {
+      return res.status(400).json({ message: "Invalid or missing entryId" });
     }
-    const match = { isPublic: true, category };
-    if (exclude && exclude.length === 24) {
-      match._id = { $ne: exclude };
+
+    // Get the current entry to extract category and tags
+    const currentEntry = await Journal.findById(entryId).lean();
+    if (!currentEntry || !currentEntry.isPublic) {
+      return res.status(404).json({ message: "Entry not found or not public" });
     }
-    let journals = await Journal.find(match)
-      .sort({ likeCount: -1, createdAt: -1 })
-      .limit(5)
-      .populate("userId", "anonymousName profileTheme")
-      .lean();
-    // Fallback to latest if not enough
-    if (journals.length < 5) {
-      const fallback = await Journal.find({
-        isPublic: true,
-        category,
-        ...(exclude && exclude.length === 24 ? { _id: { $ne: exclude } } : {}),
+
+    const { category, tags } = currentEntry;
+    const tagList = tags || [];
+
+    const baseMatch = {
+      isPublic: true,
+      category,
+      _id: { $ne: currentEntry._id },
+    };
+
+    let recommended = [];
+
+    // Try matching similar tags
+    if (tagList.length > 0) {
+      recommended = await Journal.find({
+        ...baseMatch,
+        tags: { $in: tagList },
       })
-        .sort({ createdAt: -1 })
-        .limit(5 - journals.length)
+        .sort({ likeCount: -1, createdAt: -1 })
+        .limit(limit)
         .populate("userId", "anonymousName profileTheme")
         .lean();
-      journals = journals.concat(fallback);
-      // Deduplicate by _id
+    }
+
+    // Fallback if not enough
+    if (recommended.length < limit) {
+      const fallback = await Journal.find({
+        ...baseMatch,
+        ...(tagList.length > 0 ? { tags: { $nin: tagList } } : {}),
+      })
+        .sort({ likeCount: -1, createdAt: -1 })
+        .limit(limit - recommended.length)
+        .populate("userId", "anonymousName profileTheme")
+        .lean();
+
+      recommended = recommended.concat(fallback);
+
+      // Remove duplicates
       const seen = new Set();
-      journals = journals.filter((j) => {
+      recommended = recommended.filter((j) => {
         if (seen.has(j._id.toString())) return false;
         seen.add(j._id.toString());
         return true;
       });
     }
-    // Get comment counts
+
+    // Add comment counts
     const Comment = (await import("../models/comment.js")).default;
-    const journalIds = journals.map((j) => j._id);
-    const commentCounts = await Comment.aggregate([
-      { $match: { journalId: { $in: journalIds } } },
+    const ids = recommended.map((j) => j._id);
+    const comments = await Comment.aggregate([
+      { $match: { journalId: { $in: ids } } },
       { $group: { _id: "$journalId", count: { $sum: 1 } } },
     ]);
-    const commentCountMap = {};
-    commentCounts.forEach((cc) => {
-      commentCountMap[cc._id.toString()] = cc.count;
-    });
-    const journalsWithAuthor = journals.map((journal) => ({
-      ...journal,
-      author: journal.userId
+    const commentMap = Object.fromEntries(
+      comments.map((c) => [c._id.toString(), c.count])
+    );
+
+    const result = recommended.map((j) => ({
+      ...j,
+      author: j.userId
         ? {
-            userId: journal.userId._id,
-            anonymousName: journal.userId.anonymousName,
-            profileTheme: journal.userId.profileTheme,
+            userId: j.userId._id,
+            anonymousName: j.userId.anonymousName,
+            profileTheme: j.userId.profileTheme,
           }
         : null,
-      commentCount: commentCountMap[journal._id.toString()] || 0,
+      commentCount: commentMap[j._id.toString()] || 0,
     }));
-    res.json({ journals: journalsWithAuthor });
+
+    res.json({ journals: result });
   } catch (error) {
-    console.error("Error fetching recommendations:", error);
-    res
-      .status(500)
-      .json({
-        message: "Error fetching recommendations",
-        error: error.message,
-      });
+    console.error("Recommendation error:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
 });
 
@@ -761,12 +769,10 @@ router.get("/stories/latest-by-genre", async (req, res) => {
     res.json({ stories: storiesWithAuthor });
   } catch (error) {
     console.error("Error fetching latest stories by genre:", error);
-    res
-      .status(500)
-      .json({
-        message: "Error fetching latest stories by genre",
-        error: error.message,
-      });
+    res.status(500).json({
+      message: "Error fetching latest stories by genre",
+      error: error.message,
+    });
   }
 });
 
@@ -807,12 +813,10 @@ router.get("/stories/top-by-genre/:tag", async (req, res) => {
     res.json({ stories: storiesWithAuthor, tag: decodedTag });
   } catch (error) {
     console.error("Error fetching top stories by genre:", error);
-    res
-      .status(500)
-      .json({
-        message: "Error fetching top stories by genre",
-        error: error.message,
-      });
+    res.status(500).json({
+      message: "Error fetching top stories by genre",
+      error: error.message,
+    });
   }
 });
 
