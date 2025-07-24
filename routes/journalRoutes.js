@@ -143,23 +143,13 @@ router.get("/stories/top-liked", async (req, res) => {
 
 // Get all journals for a user
 router.get("/journals/:userId", async (req, res) => {
-  try {
-    const { userId } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ message: "Invalid user ID format." });
-    }
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found." });
-    }
-    const journals = await Journal.find({ userId })
-      .sort({ createdAt: -1 })
-      .lean();
-    res.status(200).json({ journals });
-  } catch (error) {
-    console.error("Error fetching journals:", error);
-    res.status(500).json({ message: "Server Error", error: error.message });
-  }
+  const { userId } = req.params;
+  const user = await User.findById(userId);
+  if (!user) return res.status(404).json({ message: "User not found." });
+  const journals = await Journal.find({ userId })
+    .sort({ createdAt: -1 })
+    .lean();
+  res.status(200).json({ journals });
 });
 
 // Like/Unlike a journal

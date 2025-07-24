@@ -13,10 +13,11 @@ router.get("/profile/:anonymousName", async (req, res) => {
     const { withJournals } = req.query;
 
     // console.log(anonymousName);
-    
-    
+
     const user = await User.findOne({ anonymousName })
-      .select("anonymousName currentStreak longestStreak subscriberCount bio profileTheme createdAt")
+      .select(
+        "anonymousName currentStreak longestStreak subscriberCount bio profileTheme createdAt"
+      )
       .lean();
 
     // console.log(user);
@@ -28,33 +29,37 @@ router.get("/profile/:anonymousName", async (req, res) => {
     let journals = [];
     let totalJournals = 0;
 
-    if (withJournals !== 'false') {
+    if (withJournals !== "false") {
       // Get public journals by this user
-      journals = await Journal.find({ 
-        userId: user._id, 
-        isPublic: true 
+      journals = await Journal.find({
+        userId: user._id,
+        isPublic: true,
       })
         .sort({ date: -1 })
         .limit(20)
         .populate("userId", "anonymousName profileTheme") // 🟢 add this
-        .select("title content userId authorName date likeCount likes theme mood tags slug")
+        .select(
+          "title content userId authorName date likeCount likes theme mood tags slug thumbnail"
+        )
         .lean();
 
       // Get total public journal count
-      totalJournals = await Journal.countDocuments({ 
-        userId: user._id, 
-        isPublic: true 
+      totalJournals = await Journal.countDocuments({
+        userId: user._id,
+        isPublic: true,
       });
     }
 
     res.json({
       profile: user,
       journals,
-      totalJournals
+      totalJournals,
     });
   } catch (error) {
     console.error("Error fetching public profile:", error);
-    res.status(500).json({ message: "Error fetching profile", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching profile", error: error.message });
   }
 });
 
@@ -64,7 +69,9 @@ router.post("/subscribe", async (req, res) => {
     const { subscriberId, targetUserId } = req.body;
 
     if (!subscriberId || !targetUserId) {
-      return res.status(400).json({ message: "Subscriber ID and target user ID are required" });
+      return res
+        .status(400)
+        .json({ message: "Subscriber ID and target user ID are required" });
     }
 
     if (subscriberId === targetUserId) {
@@ -72,7 +79,10 @@ router.post("/subscribe", async (req, res) => {
     }
 
     // Validate user IDs
-    if (!mongoose.Types.ObjectId.isValid(subscriberId) || !mongoose.Types.ObjectId.isValid(targetUserId)) {
+    if (
+      !mongoose.Types.ObjectId.isValid(subscriberId) ||
+      !mongoose.Types.ObjectId.isValid(targetUserId)
+    ) {
       return res.status(400).json({ message: "Invalid user ID format" });
     }
 
@@ -88,35 +98,36 @@ router.post("/subscribe", async (req, res) => {
     if (isAlreadySubscribed) {
       // Unsubscribe
       await User.findByIdAndUpdate(subscriberId, {
-        $pull: { subscribedTo: targetUserId }
+        $pull: { subscribedTo: targetUserId },
       });
       await User.findByIdAndUpdate(targetUserId, {
         $pull: { subscribers: subscriberId },
-        $inc: { subscriberCount: -1 }
+        $inc: { subscriberCount: -1 },
       });
-      
+
       res.json({ subscribed: false, message: "Unsubscribed successfully" });
     } else {
       // Subscribe
       await User.findByIdAndUpdate(subscriberId, {
-        $addToSet: { subscribedTo: targetUserId }
+        $addToSet: { subscribedTo: targetUserId },
       });
       await User.findByIdAndUpdate(targetUserId, {
         $addToSet: { subscribers: subscriberId },
-        $inc: { subscriberCount: 1 }
+        $inc: { subscriberCount: 1 },
       });
       // Send mail to target user if not self
       if (subscriberId !== targetUserId) {
         const follower = await User.findById(subscriberId);
         const followed = await User.findById(targetUserId);
         if (follower && followed) {
-          const senderName = follower.anonymousName || follower.nickname || 'Someone';
+          const senderName =
+            follower.anonymousName || follower.nickname || "Someone";
           await Mail.create({
             sender: senderName,
-            title: 'New Follower',
+            title: "New Follower",
             content: `${senderName} started following you.`,
             recipients: [{ userId: targetUserId, read: false }],
-            mailType: 'other',
+            mailType: "other",
             isSystemMail: true,
             sendToAllUsers: false,
           });
@@ -126,32 +137,47 @@ router.post("/subscribe", async (req, res) => {
     }
   } catch (error) {
     console.error("Error handling subscription:", error);
-    res.status(500).json({ message: "Error handling subscription", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error handling subscription", error: error.message });
   }
 });
 
 // Get subscription status
-router.get("/subscription-status/:subscriberId/:targetUserId", async (req, res) => {
-  try {
-    const { subscriberId, targetUserId } = req.params;
+router.get(
+  "/subscription-status/:subscriberId/:targetUserId",
+  async (req, res) => {
+    try {
+      const { subscriberId, targetUserId } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(subscriberId) || !mongoose.Types.ObjectId.isValid(targetUserId)) {
-      return res.status(400).json({ message: "Invalid user ID format" });
+      if (
+        !mongoose.Types.ObjectId.isValid(subscriberId) ||
+        !mongoose.Types.ObjectId.isValid(targetUserId)
+      ) {
+        return res.status(400).json({ message: "Invalid user ID format" });
+      }
+
+      const subscriber = await User.findById(subscriberId).select(
+        "subscribedTo"
+      );
+
+      if (!subscriber) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const isSubscribed = subscriber.subscribedTo.includes(targetUserId);
+      res.json({ isSubscribed });
+    } catch (error) {
+      console.error("Error checking subscription status:", error);
+      res
+        .status(500)
+        .json({
+          message: "Error checking subscription status",
+          error: error.message,
+        });
     }
-
-    const subscriber = await User.findById(subscriberId).select("subscribedTo");
-    
-    if (!subscriber) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    const isSubscribed = subscriber.subscribedTo.includes(targetUserId);
-    res.json({ isSubscribed });
-  } catch (error) {
-    console.error("Error checking subscription status:", error);
-    res.status(500).json({ message: "Error checking subscription status", error: error.message });
   }
-});
+);
 
 // Get user's subscriptions with notification status
 router.get("/subscriptions/:userId", async (req, res) => {
@@ -165,7 +191,7 @@ router.get("/subscriptions/:userId", async (req, res) => {
     const user = await User.findById(userId)
       .populate({
         path: "subscribedTo",
-        select: "anonymousName subscriberCount profileTheme"
+        select: "anonymousName subscriberCount profileTheme",
       })
       .select("subscribedTo lastNotificationCheck");
 
@@ -179,13 +205,13 @@ router.get("/subscriptions/:userId", async (req, res) => {
         const newJournalsCount = await Journal.countDocuments({
           userId: subscribedUser._id,
           isPublic: true,
-          createdAt: { $gt: user.lastNotificationCheck }
+          createdAt: { $gt: user.lastNotificationCheck },
         });
 
         return {
           ...subscribedUser.toObject(),
           hasNewContent: newJournalsCount > 0,
-          newJournalsCount
+          newJournalsCount,
         };
       })
     );
@@ -193,7 +219,9 @@ router.get("/subscriptions/:userId", async (req, res) => {
     res.json({ subscriptions: subscriptionsWithNotifications });
   } catch (error) {
     console.error("Error fetching subscriptions:", error);
-    res.status(500).json({ message: "Error fetching subscriptions", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching subscriptions", error: error.message });
   }
 });
 
@@ -210,7 +238,7 @@ router.get("/feed/:userId", async (req, res) => {
     }
 
     const user = await User.findById(userId).select("subscribedTo");
-    
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -218,12 +246,12 @@ router.get("/feed/:userId", async (req, res) => {
     // Get journals from subscribed users
     const subscribedJournals = await Journal.find({
       userId: { $in: user.subscribedTo },
-      isPublic: true
+      isPublic: true,
     })
       .sort({ date: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('userId', 'anonymousName profileTheme')
+      .populate("userId", "anonymousName profileTheme")
       .lean();
 
     // Get all public journals if no subscriptions or to fill the feed
@@ -231,28 +259,37 @@ router.get("/feed/:userId", async (req, res) => {
       .sort({ date: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('userId', 'anonymousName profileTheme')
+      .populate("userId", "anonymousName profileTheme")
       .lean();
 
     // Combine and deduplicate
     const combinedJournals = [...subscribedJournals];
-    const existingIds = new Set(subscribedJournals.map(j => j._id.toString()));
-    
+    const existingIds = new Set(
+      subscribedJournals.map((j) => j._id.toString())
+    );
+
     for (const journal of allPublicJournals) {
-      if (!existingIds.has(journal._id.toString()) && combinedJournals.length < limit) {
+      if (
+        !existingIds.has(journal._id.toString()) &&
+        combinedJournals.length < limit
+      ) {
         combinedJournals.push(journal);
       }
     }
 
     // Mark which journals are from subscribed users and add author field
-    const journalsWithSubscriptionStatus = combinedJournals.map(journal => ({
+    const journalsWithSubscriptionStatus = combinedJournals.map((journal) => ({
       ...journal,
-      isFromSubscription: user.subscribedTo.some(subId => subId.toString() === journal.userId._id.toString()),
-      author: journal.userId ? {
-        userId: journal.userId._id,
-        anonymousName: journal.userId.anonymousName,
-        profileTheme: journal.userId.profileTheme,
-      } : null,
+      isFromSubscription: user.subscribedTo.some(
+        (subId) => subId.toString() === journal.userId._id.toString()
+      ),
+      author: journal.userId
+        ? {
+            userId: journal.userId._id,
+            anonymousName: journal.userId.anonymousName,
+            profileTheme: journal.userId.profileTheme,
+          }
+        : null,
     }));
 
     const totalCount = await Journal.countDocuments({ isPublic: true });
@@ -267,7 +304,9 @@ router.get("/feed/:userId", async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching feed:", error);
-    res.status(500).json({ message: "Error fetching feed", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching feed", error: error.message });
   }
 });
 
@@ -281,13 +320,18 @@ router.post("/notifications/mark-checked/:userId", async (req, res) => {
     }
 
     await User.findByIdAndUpdate(userId, {
-      lastNotificationCheck: new Date()
+      lastNotificationCheck: new Date(),
     });
 
     res.json({ message: "Notifications marked as checked" });
   } catch (error) {
     console.error("Error updating notification check:", error);
-    res.status(500).json({ message: "Error updating notification check", error: error.message });
+    res
+      .status(500)
+      .json({
+        message: "Error updating notification check",
+        error: error.message,
+      });
   }
 });
 
