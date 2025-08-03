@@ -113,33 +113,33 @@ router.get("/journals/top-liked", async (req, res) => {
   }
 });
 
-// Get top 3 liked public stories
-router.get("/stories/top-liked", async (req, res) => {
-  try {
-    const stories = await Journal.find({ isPublic: true, category: "story" })
-      .sort({ likeCount: -1, createdAt: -1 })
-      .limit(4)
-      .populate("userId", "anonymousName profileTheme")
-      .lean();
-    const storiesWithAuthor = stories.map((story) => ({
-      ...story,
-      author: story.userId
-        ? {
-            userId: story.userId._id,
-            anonymousName: story.userId.anonymousName,
-            profileTheme: story.userId.profileTheme,
-          }
-        : null,
-    }));
-    res.json({ stories: storiesWithAuthor });
-  } catch (error) {
-    console.error("Error fetching top liked stories:", error);
-    res.status(500).json({
-      message: "Error fetching top liked stories",
-      error: error.message,
-    });
-  }
-});
+// // Get top 3 liked public stories
+// router.get("/stories/top-liked", async (req, res) => {
+//   try {
+//     const stories = await Journal.find({ isPublic: true, category: "story" })
+//       .sort({ likeCount: -1, createdAt: -1 })
+//       .limit(4)
+//       .populate("userId", "anonymousName profileTheme")
+//       .lean();
+//     const storiesWithAuthor = stories.map((story) => ({
+//       ...story,
+//       author: story.userId
+//         ? {
+//             userId: story.userId._id,
+//             anonymousName: story.userId.anonymousName,
+//             profileTheme: story.userId.profileTheme,
+//           }
+//         : null,
+//     }));
+//     res.json({ stories: storiesWithAuthor });
+//   } catch (error) {
+//     console.error("Error fetching top liked stories:", error);
+//     res.status(500).json({
+//       message: "Error fetching top liked stories",
+//       error: error.message,
+//     });
+//   }
+// });
 
 // Get all journals for a user
 router.get("/journals/:userId", async (req, res) => {
@@ -707,6 +707,237 @@ router.post("/saveJournal", async (req, res) => {
   }
 });
 
+// router.get("/stories/latest-by-genre", async (req, res) => {
+//   try {
+//     const genres = req.query.genres
+//       ? req.query.genres.split(",")
+//       : [
+//           "Fantasy",
+//           "Horror",
+//           "Science Fiction",
+//           "Romance",
+//           "Mystery",
+//           "Adventure",
+//           "Drama",
+//           "Comedy",
+//         ];
+//     const stories = await Promise.all(
+//       genres.map(async (tag) => {
+//         const story = await Journal.findOne({
+//           isPublic: true,
+//           category: "story",
+//           tags: { $in: [new RegExp(`^${tag}$`, "i")] },
+//         })
+//           .sort({ createdAt: -1 })
+//           .populate("userId", "anonymousName profileTheme")
+//           .lean();
+//         return story ? { ...story, genre: tag } : null;
+//       })
+//     );
+//     const filteredStories = stories.filter((story) => story !== null);
+//     const commentCounts = await (
+//       await import("../models/comment.js")
+//     ).default.aggregate([
+//       { $match: { journalId: { $in: filteredStories.map((s) => s._id) } } },
+//       { $group: { _id: "$journalId", count: { $sum: 1 } } },
+//     ]);
+//     const commentCountMap = {};
+//     commentCounts.forEach((cc) => {
+//       commentCountMap[cc._id.toString()] = cc.count;
+//     });
+//     const storiesWithAuthor = filteredStories.map((story) => ({
+//       ...story,
+//       author: story.userId
+//         ? {
+//             userId: story.userId._id,
+//             anonymousName: story.userId.anonymousName,
+//             profileTheme: story.userId.profileTheme,
+//           }
+//         : null,
+//       commentCount: commentCountMap[story._id.toString()] || 0,
+//     }));
+//     res.json({ stories: storiesWithAuthor });
+//   } catch (error) {
+//     console.error("Error fetching latest stories by genre:", error);
+//     res.status(500).json({
+//       message: "Error fetching latest stories by genre",
+//       error: error.message,
+//     });
+//   }
+// });
+
+// router.get("/stories/top-by-genre/:tag", async (req, res) => {
+//   try {
+//     const { tag } = req.params;
+//     const decodedTag = decodeURIComponent(tag);
+//     const stories = await Journal.find({
+//       isPublic: true,
+//       category: "story",
+//       tags: { $in: [new RegExp(`^${decodedTag}$`, "i")] },
+//     })
+//       .sort({ likeCount: -1, createdAt: -1 })
+//       .limit(4)
+//       .populate("userId", "anonymousName profileTheme")
+//       .lean();
+//     const commentCounts = await (
+//       await import("../models/comment.js")
+//     ).default.aggregate([
+//       { $match: { journalId: { $in: stories.map((s) => s._id) } } },
+//       { $group: { _id: "$journalId", count: { $sum: 1 } } },
+//     ]);
+//     const commentCountMap = {};
+//     commentCounts.forEach((cc) => {
+//       commentCountMap[cc._id.toString()] = cc.count;
+//     });
+//     const storiesWithAuthor = stories.map((story) => ({
+//       ...story,
+//       author: story.userId
+//         ? {
+//             userId: story.userId._id,
+//             anonymousName: story.userId.anonymousName,
+//             profileTheme: story.userId.profileTheme,
+//           }
+//         : null,
+//       commentCount: commentCountMap[story._id.toString()] || 0,
+//     }));
+//     res.json({ stories: storiesWithAuthor, tag: decodedTag });
+//   } catch (error) {
+//     console.error("Error fetching top stories by genre:", error);
+//     res.status(500).json({
+//       message: "Error fetching top stories by genre",
+//       error: error.message,
+//     });
+//   }
+// });
+
+router.get("/stories/top-by-genre/:tag", async (req, res) => {
+  try {
+    const { tag } = req.params;
+    const decodedTag = decodeURIComponent(tag);
+
+    const stories = await Journal.find({
+      isPublic: true,
+      category: "story",
+      tags: { $in: [new RegExp(`^${decodedTag}$`, "i")] },
+    })
+      .select(
+        "_id title slug thumbnail metaDescription likeCount createdAt userId"
+      )
+      .sort({ likeCount: -1, createdAt: -1 })
+      .limit(4)
+      .populate({
+        path: "userId",
+        select: "anonymousName profileTheme",
+      })
+      .lean();
+
+    console.log("Raw stories:", JSON.stringify(stories, null, 2));
+
+    const commentCounts = await (
+      await import("../models/comment.js")
+    ).default.aggregate([
+      { $match: { journalId: { $in: stories.map((s) => s._id) } } },
+      { $group: { _id: "$journalId", count: { $sum: 1 } } },
+    ]);
+
+    const commentCountMap = {};
+    commentCounts.forEach((cc) => {
+      commentCountMap[cc._id.toString()] = cc.count;
+    });
+
+    const storiesWithAuthor = stories.map((story) => {
+      const author = story.userId
+        ? {
+            userId: story.userId._id || null,
+            anonymousName: story.userId.anonymousName || "Anonymous",
+            profileTheme: story.userId.profileTheme || {
+              avatarStyle: "avataaars",
+            },
+          }
+        : {
+            userId: null,
+            anonymousName: "Anonymous",
+            profileTheme: { avatarStyle: "avataaars" },
+          };
+
+      if (!story.userId) {
+        console.warn(`No userId found for story: ${story._id}`);
+      } else if (!story.userId.anonymousName) {
+        console.warn(
+          `No anonymousName for userId: ${story.userId._id} in story: ${story._id}`
+        );
+      }
+
+      return {
+        _id: story._id,
+        title: story.title || "",
+        slug: story.slug || "",
+        thumbnail: story.thumbnail || null,
+        metaDescription: story.metaDescription || null,
+        likeCount: story.likeCount || 0,
+        createdAt: story.createdAt || new Date(),
+        commentCount: commentCountMap[story._id.toString()] || 0,
+        author,
+      };
+    });
+
+    console.log(
+      "Stories with author:",
+      JSON.stringify(storiesWithAuthor, null, 2)
+    );
+
+    res.json({ stories: storiesWithAuthor, tag: decodedTag });
+  } catch (error) {
+    console.error("Error fetching top stories by genre:", error.stack);
+    res.status(500).json({
+      message: "Error fetching top stories by genre",
+      error: error.message,
+    });
+  }
+});
+
+// Optimized backend routes with minimal field selection
+
+router.get("/stories/top-liked", async (req, res) => {
+  try {
+    const stories = await Journal.find({ isPublic: true, category: "story" })
+      .select(
+        "title slug thumbnail metaDescription likeCount createdAt userId tags"
+      ) // Only essential fields
+      .sort({ likeCount: -1, createdAt: -1 })
+      .limit(4)
+      .populate("userId", "anonymousName profileTheme") // Only needed user fields
+      .lean();
+
+    const storiesWithAuthor = stories.map((story) => ({
+      _id: story._id,
+      title: story.title,
+      slug: story.slug,
+      thumbnail: story.thumbnail,
+      content: story.content,
+      metaDescription: story.metaDescription,
+      likeCount: story.likeCount,
+      createdAt: story.createdAt,
+      tags: story.tags,
+      author: story.userId
+        ? {
+            userId: story.userId._id,
+            anonymousName: story.userId.anonymousName,
+            profileTheme: story.userId.profileTheme,
+          }
+        : null,
+    }));
+
+    res.json({ stories: storiesWithAuthor });
+  } catch (error) {
+    console.error("Error fetching top liked stories:", error);
+    res.status(500).json({
+      message: "Error fetching top liked stories",
+      error: error.message,
+    });
+  }
+});
+
 router.get("/stories/latest-by-genre", async (req, res) => {
   try {
     const genres = req.query.genres
@@ -721,6 +952,7 @@ router.get("/stories/latest-by-genre", async (req, res) => {
           "Drama",
           "Comedy",
         ];
+
     const stories = await Promise.all(
       genres.map(async (tag) => {
         const story = await Journal.findOne({
@@ -728,25 +960,25 @@ router.get("/stories/latest-by-genre", async (req, res) => {
           category: "story",
           tags: { $in: [new RegExp(`^${tag}$`, "i")] },
         })
+          .select("title slug thumbnail metaDescription createdAt userId") // Only essential fields
           .sort({ createdAt: -1 })
-          .populate("userId", "anonymousName profileTheme")
+          .populate("userId", "anonymousName profileTheme") // Only needed user fields
           .lean();
         return story ? { ...story, genre: tag } : null;
       })
     );
+
     const filteredStories = stories.filter((story) => story !== null);
-    const commentCounts = await (
-      await import("../models/comment.js")
-    ).default.aggregate([
-      { $match: { journalId: { $in: filteredStories.map((s) => s._id) } } },
-      { $group: { _id: "$journalId", count: { $sum: 1 } } },
-    ]);
-    const commentCountMap = {};
-    commentCounts.forEach((cc) => {
-      commentCountMap[cc._id.toString()] = cc.count;
-    });
+
     const storiesWithAuthor = filteredStories.map((story) => ({
-      ...story,
+      _id: story._id,
+      title: story.title,
+      slug: story.slug,
+      thumbnail: story.thumbnail,
+      content: story.content,
+      metaDescription: story.metaDescription,
+      createdAt: story.createdAt,
+      genre: story.genre,
       author: story.userId
         ? {
             userId: story.userId._id,
@@ -754,57 +986,13 @@ router.get("/stories/latest-by-genre", async (req, res) => {
             profileTheme: story.userId.profileTheme,
           }
         : null,
-      commentCount: commentCountMap[story._id.toString()] || 0,
     }));
+
     res.json({ stories: storiesWithAuthor });
   } catch (error) {
     console.error("Error fetching latest stories by genre:", error);
     res.status(500).json({
       message: "Error fetching latest stories by genre",
-      error: error.message,
-    });
-  }
-});
-
-router.get("/stories/top-by-genre/:tag", async (req, res) => {
-  try {
-    const { tag } = req.params;
-    const decodedTag = decodeURIComponent(tag);
-    const stories = await Journal.find({
-      isPublic: true,
-      category: "story",
-      tags: { $in: [new RegExp(`^${decodedTag}$`, "i")] },
-    })
-      .sort({ likeCount: -1, createdAt: -1 })
-      .limit(5)
-      .populate("userId", "anonymousName profileTheme")
-      .lean();
-    const commentCounts = await (
-      await import("../models/comment.js")
-    ).default.aggregate([
-      { $match: { journalId: { $in: stories.map((s) => s._id) } } },
-      { $group: { _id: "$journalId", count: { $sum: 1 } } },
-    ]);
-    const commentCountMap = {};
-    commentCounts.forEach((cc) => {
-      commentCountMap[cc._id.toString()] = cc.count;
-    });
-    const storiesWithAuthor = stories.map((story) => ({
-      ...story,
-      author: story.userId
-        ? {
-            userId: story.userId._id,
-            anonymousName: story.userId.anonymousName,
-            profileTheme: story.userId.profileTheme,
-          }
-        : null,
-      commentCount: commentCountMap[story._id.toString()] || 0,
-    }));
-    res.json({ stories: storiesWithAuthor, tag: decodedTag });
-  } catch (error) {
-    console.error("Error fetching top stories by genre:", error);
-    res.status(500).json({
-      message: "Error fetching top stories by genre",
       error: error.message,
     });
   }
