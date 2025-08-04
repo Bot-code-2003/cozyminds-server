@@ -19,6 +19,8 @@ const allowedOrigins = [
   "https://www.starlitjournals.com",
 ];
 
+app.use(express.static("public"));
+
 // CORS configuration
 app.use(
   cors({

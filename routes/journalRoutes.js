@@ -236,24 +236,25 @@ router.post("/journals/:journalId/save", async (req, res) => {
     res.status(500).json({ message: "Error saving/unsaving journal" });
   }
 });
-
-// Get all saved journals for a user
 router.get("/journals/saved/:userId", async (req, res) => {
   const { userId } = req.params;
   const page = Number.parseInt(req.query.page) || 1;
   const limit = Number.parseInt(req.query.limit) || 20;
   const skip = (page - 1) * limit;
+
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     return res.status(400).json({ message: "Invalid User ID" });
   }
+
   try {
+    // Fetch saved journal entries with author populated
     const user = await User.findById(userId)
       .populate({
         path: "savedEntries",
         options: {
           sort: { createdAt: -1 },
-          skip: skip,
-          limit: limit,
+          skip,
+          limit,
         },
         populate: {
           path: "userId",
@@ -261,15 +262,47 @@ router.get("/journals/saved/:userId", async (req, res) => {
         },
       })
       .lean();
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    const totalSaved = await User.findById(userId).select("savedEntries");
+
+    const totalSavedCount = await User.findById(userId)
+      .select("savedEntries")
+      .lean();
     const hasMore =
-      skip + user.savedEntries.length < totalSaved.savedEntries.length;
-    res.status(200).json({ journals: user.savedEntries, hasMore });
+      skip + user.savedEntries.length < totalSavedCount.savedEntries.length;
+
+    const formattedJournals = user.savedEntries.map((entry) => {
+      const author = entry.userId
+        ? {
+            userId: entry.userId._id || null,
+            anonymousName: entry.userId.anonymousName || "Anonymous",
+            profileTheme: entry.userId.profileTheme || {
+              avatarStyle: "avataaars",
+            },
+          }
+        : {
+            userId: null,
+            anonymousName: "Anonymous",
+            profileTheme: { avatarStyle: "avataaars" },
+          };
+
+      return {
+        _id: entry._id,
+        title: entry.title || "",
+        slug: entry.slug || "",
+        thumbnail: entry.thumbnail || null,
+        metaDescription: entry.metaDescription || "",
+        likeCount: entry.likeCount || 0,
+        createdAt: entry.createdAt || new Date(),
+        author,
+      };
+    });
+
+    res.status(200).json({ journals: formattedJournals, hasMore });
   } catch (error) {
-    console.error("Error fetching saved journals:", error);
+    console.error("❌ Error fetching saved journals:", error.stack);
     res.status(500).json({ message: "Error fetching saved journals" });
   }
 });
@@ -707,109 +740,6 @@ router.post("/saveJournal", async (req, res) => {
   }
 });
 
-// router.get("/stories/latest-by-genre", async (req, res) => {
-//   try {
-//     const genres = req.query.genres
-//       ? req.query.genres.split(",")
-//       : [
-//           "Fantasy",
-//           "Horror",
-//           "Science Fiction",
-//           "Romance",
-//           "Mystery",
-//           "Adventure",
-//           "Drama",
-//           "Comedy",
-//         ];
-//     const stories = await Promise.all(
-//       genres.map(async (tag) => {
-//         const story = await Journal.findOne({
-//           isPublic: true,
-//           category: "story",
-//           tags: { $in: [new RegExp(`^${tag}$`, "i")] },
-//         })
-//           .sort({ createdAt: -1 })
-//           .populate("userId", "anonymousName profileTheme")
-//           .lean();
-//         return story ? { ...story, genre: tag } : null;
-//       })
-//     );
-//     const filteredStories = stories.filter((story) => story !== null);
-//     const commentCounts = await (
-//       await import("../models/comment.js")
-//     ).default.aggregate([
-//       { $match: { journalId: { $in: filteredStories.map((s) => s._id) } } },
-//       { $group: { _id: "$journalId", count: { $sum: 1 } } },
-//     ]);
-//     const commentCountMap = {};
-//     commentCounts.forEach((cc) => {
-//       commentCountMap[cc._id.toString()] = cc.count;
-//     });
-//     const storiesWithAuthor = filteredStories.map((story) => ({
-//       ...story,
-//       author: story.userId
-//         ? {
-//             userId: story.userId._id,
-//             anonymousName: story.userId.anonymousName,
-//             profileTheme: story.userId.profileTheme,
-//           }
-//         : null,
-//       commentCount: commentCountMap[story._id.toString()] || 0,
-//     }));
-//     res.json({ stories: storiesWithAuthor });
-//   } catch (error) {
-//     console.error("Error fetching latest stories by genre:", error);
-//     res.status(500).json({
-//       message: "Error fetching latest stories by genre",
-//       error: error.message,
-//     });
-//   }
-// });
-
-// router.get("/stories/top-by-genre/:tag", async (req, res) => {
-//   try {
-//     const { tag } = req.params;
-//     const decodedTag = decodeURIComponent(tag);
-//     const stories = await Journal.find({
-//       isPublic: true,
-//       category: "story",
-//       tags: { $in: [new RegExp(`^${decodedTag}$`, "i")] },
-//     })
-//       .sort({ likeCount: -1, createdAt: -1 })
-//       .limit(4)
-//       .populate("userId", "anonymousName profileTheme")
-//       .lean();
-//     const commentCounts = await (
-//       await import("../models/comment.js")
-//     ).default.aggregate([
-//       { $match: { journalId: { $in: stories.map((s) => s._id) } } },
-//       { $group: { _id: "$journalId", count: { $sum: 1 } } },
-//     ]);
-//     const commentCountMap = {};
-//     commentCounts.forEach((cc) => {
-//       commentCountMap[cc._id.toString()] = cc.count;
-//     });
-//     const storiesWithAuthor = stories.map((story) => ({
-//       ...story,
-//       author: story.userId
-//         ? {
-//             userId: story.userId._id,
-//             anonymousName: story.userId.anonymousName,
-//             profileTheme: story.userId.profileTheme,
-//           }
-//         : null,
-//       commentCount: commentCountMap[story._id.toString()] || 0,
-//     }));
-//     res.json({ stories: storiesWithAuthor, tag: decodedTag });
-//   } catch (error) {
-//     console.error("Error fetching top stories by genre:", error);
-//     res.status(500).json({
-//       message: "Error fetching top stories by genre",
-//       error: error.message,
-//     });
-//   }
-// });
-
 router.get("/stories/top-by-genre/:tag", async (req, res) => {
   try {
     const { tag } = req.params;
@@ -824,7 +754,7 @@ router.get("/stories/top-by-genre/:tag", async (req, res) => {
         "_id title slug thumbnail metaDescription likeCount createdAt userId"
       )
       .sort({ likeCount: -1, createdAt: -1 })
-      .limit(4)
+      .limit(3)
       .populate({
         path: "userId",
         select: "anonymousName profileTheme",
