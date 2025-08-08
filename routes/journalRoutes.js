@@ -761,7 +761,7 @@ router.get("/stories/top-by-genre/:tag", async (req, res) => {
       })
       .lean();
 
-    console.log("Raw stories:", JSON.stringify(stories, null, 2));
+    // console.log("Raw stories:", JSON.stringify(stories, null, 2));
 
     const commentCounts = await (
       await import("../models/comment.js")
@@ -811,10 +811,10 @@ router.get("/stories/top-by-genre/:tag", async (req, res) => {
       };
     });
 
-    console.log(
-      "Stories with author:",
-      JSON.stringify(storiesWithAuthor, null, 2)
-    );
+    // console.log(
+    //   "Stories with author:",
+    //   JSON.stringify(storiesWithAuthor, null, 2)
+    // );
 
     res.json({ stories: storiesWithAuthor, tag: decodedTag });
   } catch (error) {
@@ -923,6 +923,50 @@ router.get("/stories/latest-by-genre", async (req, res) => {
     console.error("Error fetching latest stories by genre:", error);
     res.status(500).json({
       message: "Error fetching latest stories by genre",
+      error: error.message,
+    });
+  }
+});
+
+// Get stories where authorPick is true
+router.get("/stories/author-picks", async (req, res) => {
+  try {
+    const stories = await Journal.find({
+      isPublic: true,
+      category: "story",
+      authorPick: true,
+    })
+      .select(
+        "title slug thumbnail metaDescription likeCount createdAt userId tags"
+      )
+      .sort({ createdAt: -1 }) // Or use likeCount if you want most liked author picks
+      .limit(5) // Customize this limit if needed
+      .populate("userId", "anonymousName profileTheme")
+      .lean();
+
+    const storiesWithAuthor = stories.map((story) => ({
+      _id: story._id,
+      title: story.title,
+      slug: story.slug,
+      thumbnail: story.thumbnail,
+      metaDescription: story.metaDescription,
+      likeCount: story.likeCount,
+      createdAt: story.createdAt,
+      tags: story.tags,
+      author: story.userId
+        ? {
+            userId: story.userId._id,
+            anonymousName: story.userId.anonymousName,
+            profileTheme: story.userId.profileTheme,
+          }
+        : null,
+    }));
+
+    res.json({ stories: storiesWithAuthor });
+  } catch (error) {
+    console.error("Error fetching author-picked stories:", error);
+    res.status(500).json({
+      message: "Error fetching author-picked stories",
       error: error.message,
     });
   }

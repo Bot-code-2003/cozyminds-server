@@ -56,6 +56,11 @@ const journalSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // author picks
+    authorPick: {
+      type: Boolean,
+      default: false,
+    },
     // Add likes array
     likes: [
       {
